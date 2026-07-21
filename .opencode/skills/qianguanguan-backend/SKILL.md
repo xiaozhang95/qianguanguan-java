@@ -28,6 +28,10 @@ public IPage<BillVO> billList(HttpServletRequest request, @RequestBody BillListR
     return billService.list(userId, body.getType(), ...);
 }
 
+// 统计查询 —— 使用 POST + @RequestBody
+@PostMapping("/bill/stats")
+public BillStatsVO billStats(HttpServletRequest request, @RequestBody BillStatsRequest body) { ... }
+
 // 新增 —— POST
 @PostMapping("/bill")
 public BillVO billSave(HttpServletRequest request, @RequestBody BillSaveRequest billRequest) { ... }
@@ -65,6 +69,29 @@ public class BillListRequest {
 Long userId = (Long) request.getAttribute(JwtClaimKey.ID.getKey());
 ```
 
+## 常量定义规范
+
+**所有领域枚举值必须定义为常量**，禁止在代码中硬编码字符串字面量：
+
+```java
+// constant/BillType.java
+public class BillType {
+    public static final String INCOME = "INCOME";
+    public static final String EXPENSE = "EXPENSE";
+}
+```
+
+使用示例：
+```java
+import com.qianguanguan.constant.BillType;
+
+.filter(b -> BillType.INCOME.equals(b.getType()))
+.filter(b -> BillType.EXPENSE.equals(b.getType()))
+```
+
+- 所有业务相关的固定字符串值（类型、状态、角色等）必须定义为 `constant/` 包下的常量
+- 常量和对应的数据库字段值保持一致
+
 ## 分层结构
 
 | 层 | 包路径 | 职责 |
@@ -76,6 +103,7 @@ Long userId = (Long) request.getAttribute(JwtClaimKey.ID.getKey());
 | Model | `model/` | 请求/响应 DTO、VO |
 | Response | `response/` | 全局响应包装、异常处理 |
 | Configuration | `configuration/` | Spring 配置类 |
+| Constant | `constant/` | 领域常量（BillType、JwtClaimKey 等） |
 | Filter | `filter/` | JWT 认证过滤器 |
 | Util | `util/` | 工具类 |
 
@@ -106,6 +134,15 @@ public interface XxxMapper extends BaseMapper<Xxx> {
 ```
 
 无需自定义 SQL，CRUD 由 MyBatis-Plus 自动提供。复杂查询使用 `LambdaQueryWrapper`。
+
+使用 `selectBatchIds` 时注意空集合检查，避免生成 `WHERE id IN ()` 非法 SQL：
+
+```java
+Map<Long, Category> categoryMap = categoryIds.isEmpty()
+        ? Map.of()
+        : categoryMapper.selectBatchIds(categoryIds).stream()
+                .collect(Collectors.toMap(Category::getId, c -> c));
+```
 
 ## Service 规范
 

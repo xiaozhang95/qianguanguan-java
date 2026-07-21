@@ -3,6 +3,7 @@ package com.qianguanguan.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.qianguanguan.constant.BillType;
 import com.qianguanguan.entity.Bill;
 import com.qianguanguan.entity.Category;
 import com.qianguanguan.mapper.BillMapper;
@@ -156,12 +157,12 @@ public class BillService {
         List<Bill> bills = billMapper.selectList(wrapper);
 
         BigDecimal totalIncome = bills.stream()
-                .filter(b -> "INCOME".equals(b.getType()))
+                .filter(b -> BillType.INCOME.equals(b.getType()))
                 .map(Bill::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal totalExpense = bills.stream()
-                .filter(b -> "EXPENSE".equals(b.getType()))
+                .filter(b -> BillType.EXPENSE.equals(b.getType()))
                 .map(Bill::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 

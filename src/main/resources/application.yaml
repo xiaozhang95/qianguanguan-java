@@ -1,6 +1,9 @@
 spring:
   application:
     name: qianguanguan-java
+  jackson:
+    date-format: yyyy-MM-dd
+    time-zone: GMT+8
   servlet:
     multipart:
       enabled: true

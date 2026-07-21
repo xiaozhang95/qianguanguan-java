@@ -1,5 +1,6 @@
 package com.qianguanguan.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -14,6 +15,7 @@ public class BillSaveRequest {
 
     private BigDecimal amount;
 
+    @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
     private Date billDate;
 
     private String remark;

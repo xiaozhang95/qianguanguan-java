@@ -1,0 +1,59 @@
+package com.qianguanguan.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.qianguanguan.entity.User;
+import com.qianguanguan.mapper.UserMapper;
+import com.qianguanguan.model.LoginResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class UserService {
+
+    private final UserMapper userMapper;
+
+    public LoginResponse.UserInfo getUserInfo(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        return LoginResponse.UserInfo.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .name(user.getName())
+                .role(user.getRole())
+                .phone(user.getPhone())
+                .email(user.getEmail())
+                .createtime(user.getCreatetime())
+                .build();
+    }
+
+    public IPage<User> list(String username, String role, Integer status, Integer pageNum, Integer pageSize) {
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        if (username != null && !username.isEmpty()) {
+            wrapper.like(User::getUsername, username);
+        }
+        if (role != null && !role.isEmpty()) {
+            wrapper.eq(User::getRole, role);
+        }
+        if (status != null) {
+            wrapper.eq(User::getStatus, status);
+        }
+        wrapper.orderByDesc(User::getCreatetime);
+
+        Page<User> page = new Page<>(pageNum != null ? pageNum : 1, pageSize != null ? pageSize : 10);
+        return userMapper.selectPage(page, wrapper);
+    }
+
+    public void toggleStatus(Long id) {
+        User user = userMapper.selectById(id);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        user.setStatus(user.getStatus() != null && user.getStatus() == 1 ? 0 : 1);
+        userMapper.updateById(user);
+    }
+}

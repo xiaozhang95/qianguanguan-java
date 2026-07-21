@@ -22,25 +22,14 @@ import java.util.concurrent.TimeUnit;
 public class LoginService {
 
     private final UserMapper userMapper;
+    private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final CaptchaService captchaService;
     private final SecurityProperties securityProperties;
     private final StringRedisTemplate stringRedisTemplate;
 
     public LoginResponse.UserInfo getUserInfo(Long userId) {
-        User user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new RuntimeException("用户不存在");
-        }
-        return LoginResponse.UserInfo.builder()
-                .id(user.getId())
-                .username(user.getUsername())
-                .name(user.getName())
-                .role(user.getRole())
-                .phone(user.getPhone())
-                .email(user.getEmail())
-                .createtime(user.getCreatetime())
-                .build();
+        return userService.getUserInfo(userId);
     }
 
     public LoginResponse login(LoginRequest request) {

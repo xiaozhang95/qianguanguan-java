@@ -20,6 +20,7 @@ CREATE TABLE `t_user` (
     `role`       VARCHAR(50)  NOT NULL DEFAULT '用户' COMMENT '角色',
     `phone`      VARCHAR(20)  DEFAULT NULL COMMENT '手机号',
     `email`      VARCHAR(100) DEFAULT NULL COMMENT '邮箱',
+    `status`     TINYINT      NOT NULL DEFAULT 1 COMMENT '状态：1-启用 0-禁用',
     `createtime` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_username` (`username`)
@@ -28,8 +29,8 @@ CREATE TABLE `t_user` (
 -- --------------------------------------------
 -- 默认管理员 admin / 123456
 -- --------------------------------------------
-INSERT INTO `t_user` (`id`, `username`, `password`, `name`, `role`, `phone`, `email`, `createtime`)
-VALUES (1, 'admin', '$2b$10$DCutU/Klf3dOGH/qFgPekO4lcozfrHVyXKMONmhsny6NpDH7zbRw.', '系统管理员', '超级管理员', '13800000000', 'admin@qianguanguan.com', NOW());
+INSERT INTO `t_user` (`id`, `username`, `password`, `name`, `role`, `phone`, `email`, `status`, `createtime`)
+VALUES (1, 'admin', '$2b$10$DCutU/Klf3dOGH/qFgPekO4lcozfrHVyXKMONmhsny6NpDH7zbRw.', '系统管理员', 'SUPER_ADMIN', '13800000000', 'admin@qianguanguan.com', 1, NOW());
 
 -- --------------------------------------------
 -- 分类表

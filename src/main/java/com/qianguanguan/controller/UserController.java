@@ -5,6 +5,7 @@ import com.qianguanguan.constant.JwtClaimKey;
 import com.qianguanguan.entity.User;
 import com.qianguanguan.model.LoginResponse;
 import com.qianguanguan.model.UserListRequest;
+import com.qianguanguan.model.ProfileUpdateRequest;
 import com.qianguanguan.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,5 +39,12 @@ public class UserController {
     @PutMapping("/user/toggle/{id}")
     public void userToggle(@PathVariable Long id) {
         userService.toggleStatus(id);
+    }
+
+    @Operation(summary = "修改个人信息", description = "当前用户修改自己的姓名、手机号、邮箱")
+    @PutMapping("/user/profile")
+    public LoginResponse.UserInfo updateProfile(HttpServletRequest request, @RequestBody ProfileUpdateRequest body) {
+        Long userId = (Long) request.getAttribute(JwtClaimKey.ID.getKey());
+        return userService.updateProfile(userId, body.getName(), body.getPhone(), body.getEmail(), body.getAvatar());
     }
 }

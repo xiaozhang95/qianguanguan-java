@@ -39,6 +39,9 @@ public class LoginResponse {
         @Schema(description = "邮箱")
         private String email;
 
+        @Schema(description = "头像")
+        private String avatar;
+
         @Schema(description = "创建时间")
         private Date createtime;
     }

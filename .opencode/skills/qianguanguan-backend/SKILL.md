@@ -21,14 +21,14 @@ description: Use ONLY when working on qianguanguan-java (钱罐罐 Spring Boot�
 **有请求参数的接口一律使用 POST**，通过 `@RequestBody` 接收 JSON 请求体：
 
 ```java
-// 列表查询 —— 使用 POST + @RequestBody
+// 列表查询 —— POST + @RequestBody
 @PostMapping("/bill/list")
 public IPage<BillVO> billList(HttpServletRequest request, @RequestBody BillListRequest body) {
     Long userId = (Long) request.getAttribute(JwtClaimKey.ID.getKey());
     return billService.list(userId, body.getType(), ...);
 }
 
-// 统计查询 —— 使用 POST + @RequestBody
+// 统计查询 —— POST + @RequestBody
 @PostMapping("/bill/stats")
 public BillStatsVO billStats(HttpServletRequest request, @RequestBody BillStatsRequest body) { ... }
 
@@ -39,6 +39,10 @@ public BillVO billSave(HttpServletRequest request, @RequestBody BillSaveRequest 
 // 更新 —— PUT + 路径参数
 @PutMapping("/bill/{id}")
 public BillVO billUpdate(HttpServletRequest request, @PathVariable Long id, @RequestBody BillSaveRequest billRequest) { ... }
+
+// 状态切换 —— PUT + 路径参数
+@PutMapping("/user/toggle/{id}")
+public void userToggle(@PathVariable Long id) { ... }
 
 // 删除 —— DELETE + 路径参数
 @DeleteMapping("/bill/{id}")
@@ -59,6 +63,24 @@ public class BillListRequest {
     private Integer pageNum;
     private Integer pageSize;
 }
+```
+
+日期字段必须添加 `@JsonFormat` 注解：
+
+```java
+@JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
+private Date billDate;
+```
+
+### application.yaml 配置
+
+Jackson 全局日期格式：
+
+```yaml
+spring:
+  jackson:
+    date-format: yyyy-MM-dd
+    time-zone: GMT+8
 ```
 
 ### 获取当前用户
@@ -89,8 +111,7 @@ import com.qianguanguan.constant.BillType;
 .filter(b -> BillType.EXPENSE.equals(b.getType()))
 ```
 
-- 所有业务相关的固定字符串值（类型、状态、角色等）必须定义为 `constant/` 包下的常量
-- 常量和对应的数据库字段值保持一致
+- 所有业务固定值（类型、状态、角色等）必须定义为 `constant/` 包下的常量
 
 ## 分层结构
 
@@ -116,6 +137,7 @@ public class Xxx {
     @TableId(type = IdType.ASSIGN_ID)  // 雪花算法生成ID
     private Long id;
     private String name;
+    private Integer status;   // 状态：1-启用 0-禁用
     private Date createtime;
 }
 ```
@@ -124,6 +146,7 @@ public class Xxx {
 - `@TableName` 对应表名（MyBatis-Plus 全局配置已设置 `t_` 前缀）
 - 主键用 `@TableId(type = IdType.ASSIGN_ID)`
 - 日期类型用 `java.util.Date`
+- 状态字段用 `Integer`（1启用/0禁用）
 
 ## Mapper 规范
 
@@ -133,9 +156,9 @@ public interface XxxMapper extends BaseMapper<Xxx> {
 }
 ```
 
-无需自定义 SQL，CRUD 由 MyBatis-Plus 自动提供。复杂查询使用 `LambdaQueryWrapper`。
+无需自定义 SQL，CRUD 由 MyBatis-Plus 自动提供。查询使用 `LambdaQueryWrapper`。
 
-使用 `selectBatchIds` 时注意空集合检查，避免生成 `WHERE id IN ()` 非法 SQL：
+**使用 `selectBatchIds` 时必须检查空集合**，避免生成 `WHERE id IN ()` 非法 SQL：
 
 ```java
 Map<Long, Category> categoryMap = categoryIds.isEmpty()
@@ -152,6 +175,7 @@ Map<Long, Category> categoryMap = categoryIds.isEmpty()
 public class XxxService {
     private final XxxMapper xxxMapper;
     // 使用 LambdaQueryWrapper 构建查询条件
+    // 分页查询使用 MyBatis-Plus Page 对象
 }
 ```
 
@@ -160,6 +184,7 @@ public class XxxService {
 - 数据库连接: `jdbc:mysql://127.0.0.1:3306/qianguanguan`
 - 用户名/密码: `root` / `00000000`
 - 初始化脚本: 项目根目录 `init.sql`
+- 角色值使用英文常量：`SUPER_ADMIN`、`ADMIN`、`USER`
 
 ## 安全配置
 

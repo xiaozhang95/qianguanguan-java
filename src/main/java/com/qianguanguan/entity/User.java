@@ -28,5 +28,7 @@ public class User {
 
     private Integer status;
 
+    private String avatar;
+
     private Date createtime;
 }

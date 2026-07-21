@@ -27,6 +27,7 @@ public class UserService {
                 .role(user.getRole())
                 .phone(user.getPhone())
                 .email(user.getEmail())
+                .avatar(user.getAvatar())
                 .createtime(user.getCreatetime())
                 .build();
     }
@@ -55,5 +56,29 @@ public class UserService {
         }
         user.setStatus(user.getStatus() != null && user.getStatus() == 1 ? 0 : 1);
         userMapper.updateById(user);
+    }
+
+    public LoginResponse.UserInfo updateProfile(Long userId, String name, String phone, String email, String avatar) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        user.setName(name);
+        user.setPhone(phone);
+        user.setEmail(email);
+        if (avatar != null) {
+            user.setAvatar(avatar);
+        }
+        userMapper.updateById(user);
+        return LoginResponse.UserInfo.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .name(user.getName())
+                .role(user.getRole())
+                .phone(user.getPhone())
+                .email(user.getEmail())
+                .avatar(user.getAvatar())
+                .createtime(user.getCreatetime())
+                .build();
     }
 }

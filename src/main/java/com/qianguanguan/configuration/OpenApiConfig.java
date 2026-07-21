@@ -15,7 +15,7 @@ public class OpenApiConfig {
     public OpenAPI openAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Spring Boot 3 API")
+                        .title("钱罐罐 API")
                         .version("1.0"))
                 .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))
                 .components(new Components()

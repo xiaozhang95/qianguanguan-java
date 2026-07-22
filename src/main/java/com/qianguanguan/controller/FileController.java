@@ -36,6 +36,6 @@ public class FileController {
         String filename = UUID.randomUUID() + ext;
         File dest = dir.resolve(filename).toFile();
         file.transferTo(dest);
-        return Map.of("url", "/static/" + filename);
+        return Map.of("url", "/upload/" + filename);
     }
 }

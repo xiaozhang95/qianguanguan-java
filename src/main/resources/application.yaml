@@ -33,7 +33,7 @@ mybatis-plus:
       id-type: assign_id
 security:
   whitelist:
-    - /static/**
+    - /upload/**
     - /upload
     - /api/business/login
     - /api/business/captcha
@@ -49,7 +49,7 @@ security:
     expiration: 3600000
 logging:
   file:
-    path: /app/logs
+    path: ./logs
   logback:
     rollingpolicy:
       max-file-size: 10MB

@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Date;
 
 @Data
@@ -24,7 +25,7 @@ public class BillVO {
 
     private BigDecimal amount;
 
-    private Date billDate;
+    private LocalDate billDate;
 
     private String remark;
 

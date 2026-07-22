@@ -1,7 +1,7 @@
 package com.qianguanguan.filter;
 
 import com.qianguanguan.configuration.SecurityProperties;
-import com.qianguanguan.constant.JwtClaimKey;
+import com.qianguanguan.constant.JwtClaims;
 import com.qianguanguan.response.Response;
 import com.qianguanguan.util.Jwt;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,10 +61,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String token = Authorization.substring(7);
                 Claims claims = Jwt.parserToken(token, key);
 
-                String role = claims.get(JwtClaimKey.ROLE.getKey(), String.class);
-                Long id = claims.get(JwtClaimKey.ID.getKey(), Long.class);
+                String role = claims.get(JwtClaims.ROLE, String.class);
+                Long id = claims.get(JwtClaims.ID, Long.class);
 
-                Date date = claims.get(JwtClaimKey.DATE.getKey(), Date.class);
+                Date date = claims.get(JwtClaims.DATE, Date.class);
                 String cacheDate = stringRedisTemplate.opsForValue().get("user_" + id);
 
                 if (cacheDate != null && Long.parseLong(cacheDate) == date.getTime()) {
@@ -74,8 +74,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                    request.setAttribute(JwtClaimKey.ROLE.getKey(), role);
-                    request.setAttribute(JwtClaimKey.ID.getKey(), id);
+                    request.setAttribute(JwtClaims.ROLE, role);
+                    request.setAttribute(JwtClaims.ID, id);
                 } else {
                     writeJsonResponse(response);
                     return;

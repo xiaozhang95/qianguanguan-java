@@ -3,10 +3,12 @@ package com.qianguanguan.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.qianguanguan.constant.Role;
 import com.qianguanguan.entity.User;
 import com.qianguanguan.mapper.UserMapper;
 import com.qianguanguan.model.LoginResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 public class UserService {
 
     private final UserMapper userMapper;
+    private final StringRedisTemplate stringRedisTemplate;
 
     public LoginResponse.UserInfo getUserInfo(Long userId) {
         User user = userMapper.selectById(userId);
@@ -49,13 +52,30 @@ public class UserService {
         return userMapper.selectPage(page, wrapper);
     }
 
-    public void toggleStatus(Long id) {
+    public void toggleStatus(String requesterRole, Long id) {
+        if (!Role.SUPER_ADMIN.equals(requesterRole)) {
+            throw new RuntimeException("无权限");
+        }
         User user = userMapper.selectById(id);
         if (user == null) {
             throw new RuntimeException("用户不存在");
         }
         user.setStatus(user.getStatus() != null && user.getStatus() == 1 ? 0 : 1);
         userMapper.updateById(user);
+        stringRedisTemplate.delete("user_" + id);
+    }
+
+    public void updateRole(String requesterRole, Long id, String role) {
+        if (!Role.SUPER_ADMIN.equals(requesterRole)) {
+            throw new RuntimeException("无权限");
+        }
+        User user = userMapper.selectById(id);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        user.setRole(role);
+        userMapper.updateById(user);
+        stringRedisTemplate.delete("user_" + id);
     }
 
     public LoginResponse.UserInfo updateProfile(Long userId, String name, String phone, String email, String avatar) {

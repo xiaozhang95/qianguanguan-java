@@ -1,7 +1,7 @@
 package com.qianguanguan.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.qianguanguan.constant.JwtClaimKey;
+import com.qianguanguan.constant.JwtClaims;
 import com.qianguanguan.entity.User;
 import com.qianguanguan.model.LoginResponse;
 import com.qianguanguan.model.UserListRequest;
@@ -24,7 +24,7 @@ public class UserController {
     @Operation(summary = "获取当前用户信息", description = "根据JWT token获取当前登录用户的详细信息")
     @GetMapping("/user/info")
     public LoginResponse.UserInfo userInfo(HttpServletRequest request) {
-        Long userId = (Long) request.getAttribute(JwtClaimKey.ID.getKey());
+        Long userId = (Long) request.getAttribute(JwtClaims.ID);
         return userService.getUserInfo(userId);
     }
 
@@ -35,16 +35,24 @@ public class UserController {
                 body.getPageNum(), body.getPageSize());
     }
 
-    @Operation(summary = "切换用户状态", description = "启用/禁用用户")
+    @Operation(summary = "切换用户状态", description = "仅超级管理员可启用/禁用用户")
     @PutMapping("/user/toggle/{id}")
-    public void userToggle(@PathVariable Long id) {
-        userService.toggleStatus(id);
+    public void userToggle(HttpServletRequest request, @PathVariable Long id) {
+        String role = (String) request.getAttribute(JwtClaims.ROLE);
+        userService.toggleStatus(role, id);
+    }
+
+    @Operation(summary = "修改用户角色", description = "仅超级管理员可修改用户角色类型")
+    @PutMapping("/user/role/update/{id}")
+    public void userUpdateRole(HttpServletRequest request, @PathVariable Long id, @RequestParam String role) {
+        String requesterRole = (String) request.getAttribute(JwtClaims.ROLE);
+        userService.updateRole(requesterRole, id, role);
     }
 
     @Operation(summary = "修改个人信息", description = "当前用户修改自己的姓名、手机号、邮箱")
     @PutMapping("/user/profile")
     public LoginResponse.UserInfo updateProfile(HttpServletRequest request, @RequestBody ProfileUpdateRequest body) {
-        Long userId = (Long) request.getAttribute(JwtClaimKey.ID.getKey());
+        Long userId = (Long) request.getAttribute(JwtClaims.ID);
         return userService.updateProfile(userId, body.getName(), body.getPhone(), body.getEmail(), body.getAvatar());
     }
 }

@@ -1,6 +1,6 @@
 package com.qianguanguan.controller;
 
-import com.qianguanguan.constant.JwtClaimKey;
+import com.qianguanguan.constant.JwtClaims;
 import com.qianguanguan.entity.Category;
 import com.qianguanguan.model.BillVO;
 import com.qianguanguan.model.CategorySaveRequest;
@@ -37,19 +37,19 @@ public class BillController {
     }
 
     @Operation(summary = "新增分类")
-    @PostMapping("/category")
+    @PostMapping("/category/save")
     public Category categorySave(@RequestBody CategorySaveRequest request) {
         return categoryService.save(request);
     }
 
     @Operation(summary = "更新分类")
-    @PutMapping("/category/{id}")
+    @PutMapping("/category/update/{id}")
     public Category categoryUpdate(@PathVariable Long id, @RequestBody CategorySaveRequest request) {
         return categoryService.update(id, request);
     }
 
     @Operation(summary = "删除分类")
-    @DeleteMapping("/category/{id}")
+    @DeleteMapping("/category/delete/{id}")
     public void categoryDelete(@PathVariable Long id) {
         categoryService.delete(id);
     }
@@ -57,37 +57,37 @@ public class BillController {
     @Operation(summary = "账单列表")
     @PostMapping("/bill/list")
     public IPage<BillVO> billList(HttpServletRequest request, @RequestBody BillListRequest body) {
-        Long userId = (Long) request.getAttribute(JwtClaimKey.ID.getKey());
+        Long userId = (Long) request.getAttribute(JwtClaims.ID);
         return billService.list(userId, body.getType(), body.getCategoryId(),
                 body.getStartDate(), body.getEndDate(),
                 body.getPageNum(), body.getPageSize());
     }
 
     @Operation(summary = "新增账单")
-    @PostMapping("/bill")
+    @PostMapping("/bill/save")
     public BillVO billSave(HttpServletRequest request, @RequestBody BillSaveRequest billRequest) {
-        Long userId = (Long) request.getAttribute(JwtClaimKey.ID.getKey());
+        Long userId = (Long) request.getAttribute(JwtClaims.ID);
         return billService.save(userId, billRequest);
     }
 
     @Operation(summary = "更新账单")
-    @PutMapping("/bill/{id}")
+    @PutMapping("/bill/update/{id}")
     public BillVO billUpdate(HttpServletRequest request, @PathVariable Long id, @RequestBody BillSaveRequest billRequest) {
-        Long userId = (Long) request.getAttribute(JwtClaimKey.ID.getKey());
+        Long userId = (Long) request.getAttribute(JwtClaims.ID);
         return billService.update(userId, id, billRequest);
     }
 
     @Operation(summary = "删除账单")
-    @DeleteMapping("/bill/{id}")
+    @DeleteMapping("/bill/delete/{id}")
     public void billDelete(HttpServletRequest request, @PathVariable Long id) {
-        Long userId = (Long) request.getAttribute(JwtClaimKey.ID.getKey());
+        Long userId = (Long) request.getAttribute(JwtClaims.ID);
         billService.delete(userId, id);
     }
 
     @Operation(summary = "月度统计")
     @PostMapping("/bill/stats")
     public BillStatsVO billStats(HttpServletRequest request, @RequestBody BillStatsRequest body) {
-        Long userId = (Long) request.getAttribute(JwtClaimKey.ID.getKey());
+        Long userId = (Long) request.getAttribute(JwtClaims.ID);
         return billService.stats(userId, body.getYear(), body.getMonth());
     }
 }

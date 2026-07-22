@@ -1,195 +1,60 @@
 ---
 name: qianguanguan-backend
-description: Use ONLY when working on qianguanguan-java (钱罐罐 Spring Boot后端). Covers API conventions, code patterns, entity/mapper/service/controller layers, MyBatis-Plus usage, and database conventions.
+description: Use when working with the qianguanguan-java (钱罐罐) Spring Boot backend. Covers entity design, API conventions, Jackson config, MyBatis-Plus, security, and exception handling.
 ---
 
-# 钱罐罐 后端开发规范
+# qianguanguan-java 后端规范
 
-## 技术栈
+## 项目技术栈
 
-- **框架**: Spring Boot 3.5.6, Java 17, Maven
-- **ORM**: MyBatis-Plus 3.5.7
-- **数据库**: MySQL 8.x (`qianguanguan` 库, 表前缀 `t_`)
-- **认证**: Spring Security + JWT (jjwt 0.11.5) + BCrypt
-- **缓存**: Redis (Spring Data Redis)
-- **文档**: SpringDoc OpenAPI 2.7.0 (Swagger)
+Spring Boot + MyBatis-Plus + MySQL + Redis + Spring Security + JWT
 
-## API 设计规范
+## 实体（Entity）规范
 
-### 请求方法约定
+- 所有实体使用 `@TableId(type = IdType.ASSIGN_ID)` 生成 Snowflake 64位Long型ID
+- 表名前缀 `t_` 在 MyBatis-Plus 全局配置 `mybatis-plus.global-config.db-config.table-prefix: t_` 中统一处理，实体类 `@TableName` 不加 `t_` 前缀
+- 实体放在 `com.qianguanguan.entity` 包下
 
-**有请求参数的接口一律使用 POST**，通过 `@RequestBody` 接收 JSON 请求体：
+## Jackson 序列化规范
 
+- **必须**配置 `JacksonConfig`，将 `Long` 类型全局序列化为 `String`（防止 JavaScript 精度丢失）:
 ```java
-// 列表查询 —— POST + @RequestBody
-@PostMapping("/bill/list")
-public IPage<BillVO> billList(HttpServletRequest request, @RequestBody BillListRequest body) {
-    Long userId = (Long) request.getAttribute(JwtClaimKey.ID.getKey());
-    return billService.list(userId, body.getType(), ...);
-}
-
-// 统计查询 —— POST + @RequestBody
-@PostMapping("/bill/stats")
-public BillStatsVO billStats(HttpServletRequest request, @RequestBody BillStatsRequest body) { ... }
-
-// 新增 —— POST
-@PostMapping("/bill")
-public BillVO billSave(HttpServletRequest request, @RequestBody BillSaveRequest billRequest) { ... }
-
-// 更新 —— PUT + 路径参数
-@PutMapping("/bill/{id}")
-public BillVO billUpdate(HttpServletRequest request, @PathVariable Long id, @RequestBody BillSaveRequest billRequest) { ... }
-
-// 状态切换 —— PUT + 路径参数
-@PutMapping("/user/toggle/{id}")
-public void userToggle(@PathVariable Long id) { ... }
-
-// 删除 —— DELETE + 路径参数
-@DeleteMapping("/bill/{id}")
-public void billDelete(HttpServletRequest request, @PathVariable Long id) { ... }
-```
-
-### 请求参数 DTO
-
-每个带参数的请求都需创建独立的 Request 类放在 `model/` 包下：
-
-```java
-@Data
-public class BillListRequest {
-    private String type;
-    private Long categoryId;
-    private String startDate;
-    private String endDate;
-    private Integer pageNum;
-    private Integer pageSize;
+@Configuration
+public class JacksonConfig {
+    @Bean
+    public Jackson2ObjectMapperBuilderCustomizer jackson2ObjectMapperBuilderCustomizer() {
+        return builder -> {
+            builder.serializerByType(Long.class, ToStringSerializer.instance);
+            builder.serializerByType(Long.TYPE, ToStringSerializer.instance);
+        };
+    }
 }
 ```
+- 日期格式：`spring.jackson.date-format: yyyy-MM-dd`，时区 `GMT+8`
 
-日期字段必须添加 `@JsonFormat` 注解：
+## Controller / API 接口规范
 
-```java
-@JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
-private Date billDate;
-```
-
-### application.yaml 配置
-
-Jackson 全局日期格式：
-
-```yaml
-spring:
-  jackson:
-    date-format: yyyy-MM-dd
-    time-zone: GMT+8
-```
-
-### 获取当前用户
-
-从 JWT filter 注入的 request attribute 中获取用户ID：
-
-```java
-Long userId = (Long) request.getAttribute(JwtClaimKey.ID.getKey());
-```
-
-## 常量定义规范
-
-**所有领域枚举值必须定义为常量**，禁止在代码中硬编码字符串字面量：
-
-```java
-// constant/BillType.java
-public class BillType {
-    public static final String INCOME = "INCOME";
-    public static final String EXPENSE = "EXPENSE";
-}
-```
-
-使用示例：
-```java
-import com.qianguanguan.constant.BillType;
-
-.filter(b -> BillType.INCOME.equals(b.getType()))
-.filter(b -> BillType.EXPENSE.equals(b.getType()))
-```
-
-- 所有业务固定值（类型、状态、角色等）必须定义为 `constant/` 包下的常量
-
-## 分层结构
-
-| 层 | 包路径 | 职责 |
-|---|---|---|
-| Controller | `controller/` | 接收请求、参数校验、调用 Service |
-| Service | `service/` | 业务逻辑 |
-| Mapper | `mapper/` | 数据访问，继承 MyBatis-Plus `BaseMapper<T>` |
-| Entity | `entity/` | 数据库表映射，使用 `@TableName("t_xxx")` |
-| Model | `model/` | 请求/响应 DTO、VO |
-| Response | `response/` | 全局响应包装、异常处理 |
-| Configuration | `configuration/` | Spring 配置类 |
-| Constant | `constant/` | 领域常量（BillType、JwtClaimKey 等） |
-| Filter | `filter/` | JWT 认证过滤器 |
-| Util | `util/` | 工具类 |
-
-## Entity 规范
-
-```java
-@Data
-@TableName("t_xxx")
-public class Xxx {
-    @TableId(type = IdType.ASSIGN_ID)  // 雪花算法生成ID
-    private Long id;
-    private String name;
-    private Integer status;   // 状态：1-启用 0-禁用
-    private Date createtime;
-}
-```
-
-- 使用 `@Data` (Lombok)
-- `@TableName` 对应表名（MyBatis-Plus 全局配置已设置 `t_` 前缀）
-- 主键用 `@TableId(type = IdType.ASSIGN_ID)`
-- 日期类型用 `java.util.Date`
-- 状态字段用 `Integer`（1启用/0禁用）
-
-## Mapper 规范
-
-```java
-@Mapper
-public interface XxxMapper extends BaseMapper<Xxx> {
-}
-```
-
-无需自定义 SQL，CRUD 由 MyBatis-Plus 自动提供。查询使用 `LambdaQueryWrapper`。
-
-**使用 `selectBatchIds` 时必须检查空集合**，避免生成 `WHERE id IN ()` 非法 SQL：
-
-```java
-Map<Long, Category> categoryMap = categoryIds.isEmpty()
-        ? Map.of()
-        : categoryMapper.selectBatchIds(categoryIds).stream()
-                .collect(Collectors.toMap(Category::getId, c -> c));
-```
+- 所有接口统一前缀 `/api/business`
+- **URL 必须包含语义化动作后缀**，禁止仅用 HTTP method 区分操作：
+  - 新增：`POST /{resource}/save`
+  - 更新：`PUT /{resource}/update/{id}`
+  - 删除：`DELETE /{resource}/delete/{id}`
+  - 列表：`POST /{resource}/list`
+- 从 JWT 获取当前用户：`(Long) request.getAttribute(JwtClaimKey.ID.getKey())`
 
 ## Service 规范
 
-```java
-@Service
-@RequiredArgsConstructor
-public class XxxService {
-    private final XxxMapper xxxMapper;
-    // 使用 LambdaQueryWrapper 构建查询条件
-    // 分页查询使用 MyBatis-Plus Page 对象
-}
-```
+- 删除和更新操作**必须**先校验账单所有权（`userId` 匹配），不存在或无权操作均抛出 `RuntimeException`
+- 业务逻辑放在 Service 层，Controller 仅做参数提取和调用
+- 分页使用 MyBatis-Plus `IPage` / `Page`
 
-## 数据库配置
+## 响应规范
 
-- 数据库连接: `jdbc:mysql://127.0.0.1:3306/qianguanguan`
-- 用户名/密码: `root` / `00000000`
-- 初始化脚本: 项目根目录 `init.sql`
-- 角色值使用英文常量：`SUPER_ADMIN`、`ADMIN`、`USER`
+- 全局响应包装：`GlobalResponseHandler` 实现 `ResponseBodyAdvice`，统一返回 `Response<T>`（code / data / msg）
+- 全局异常处理：`@ExceptionHandler` 捕获所有异常，包装为 `Response.error(msg)`
+- 返回对象使用 VO（放在 `com.qianguanguan.model`），不与 Entity 直接暴露
 
-## 安全配置
+## Mapper 规范
 
-- 白名单路径在 `application.yaml` 中配置 (`security.whitelist`)
-- Swagger 文档路径自动放行
-- JWT 私钥: `1234567890abcdef1234567890abcdef`
-- Token 有效期: 1小时 (3600000ms)
-- 密码加密: BCryptPasswordEncoder
+- 继承 MyBatis-Plus `BaseMapper<T>`
+- 复杂查询使用 `LambdaQueryWrapper`

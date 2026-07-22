@@ -1,6 +1,6 @@
 package com.qianguanguan.util;
 
-import com.qianguanguan.constant.JwtClaimKey;
+import com.qianguanguan.constant.JwtClaims;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -15,9 +15,9 @@ public class Jwt {
     public static String generateToken(long id, String role, Key key, Date date, Date expirationDate) {
         return "Bearer " + Jwts.builder()
                 .setSubject(null)
-                .claim(JwtClaimKey.DATE.getKey(), date)
-                .claim(JwtClaimKey.ROLE.getKey(), role)
-                .claim(JwtClaimKey.ID.getKey(), id)
+                .claim(JwtClaims.DATE, date)
+                .claim(JwtClaims.ROLE, role)
+                .claim(JwtClaims.ID, id)
                 .setIssuedAt(date)
                 .setExpiration(expirationDate)
                 .signWith(key, SignatureAlgorithm.HS256)

@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @Data
 @TableName("t_user")
@@ -30,5 +30,5 @@ public class User {
 
     private String avatar;
 
-    private Date createtime;
+    private LocalDateTime createtime;
 }

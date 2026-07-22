@@ -88,6 +88,6 @@ public class BillController {
     @PostMapping("/bill/stats")
     public BillStatsVO billStats(HttpServletRequest request, @RequestBody BillStatsRequest body) {
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
-        return billService.stats(userId, body.getYear(), body.getMonth());
+        return billService.stats(userId, body.getYear(), body.getMonth(), body.getDay());
     }
 }

@@ -8,4 +8,6 @@ public class BillStatsRequest {
     private String year;
 
     private String month;
+
+    private String day;
 }

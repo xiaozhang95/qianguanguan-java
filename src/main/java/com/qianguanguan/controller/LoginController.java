@@ -3,6 +3,7 @@ package com.qianguanguan.controller;
 import com.qianguanguan.model.CaptchaResponse;
 import com.qianguanguan.model.LoginRequest;
 import com.qianguanguan.model.LoginResponse;
+import com.qianguanguan.model.RegisterRequest;
 import com.qianguanguan.service.CaptchaService;
 import com.qianguanguan.service.LoginService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,5 +30,11 @@ public class LoginController {
     @PostMapping("/login")
     public LoginResponse login(@RequestBody LoginRequest request) {
         return loginService.login(request);
+    }
+
+    @Operation(summary = "用户注册", description = "注册新用户，需要用户名、密码和验证码")
+    @PostMapping("/register")
+    public void register(@RequestBody RegisterRequest request) {
+        loginService.register(request);
     }
 }

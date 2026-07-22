@@ -2,7 +2,7 @@ spring:
   application:
     name: qianguanguan-java
   jackson:
-    date-format: yyyy-MM-dd
+    date-format: yyyy-MM-dd HH:mm:ss
     time-zone: GMT+8
   servlet:
     multipart:
@@ -36,6 +36,7 @@ security:
     - /upload/**
     - /upload
     - /api/business/login
+    - /api/business/register
     - /api/business/captcha
   swagger-paths:
     - /v3/api-docs

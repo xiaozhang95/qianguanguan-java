@@ -6,6 +6,7 @@ import com.qianguanguan.entity.User;
 import com.qianguanguan.model.LoginResponse;
 import com.qianguanguan.model.UserListRequest;
 import com.qianguanguan.model.ProfileUpdateRequest;
+import com.qianguanguan.model.ChangePasswordRequest;
 import com.qianguanguan.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -54,5 +55,12 @@ public class UserController {
     public LoginResponse.UserInfo updateProfile(HttpServletRequest request, @RequestBody ProfileUpdateRequest body) {
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
         return userService.updateProfile(userId, body.getName(), body.getPhone(), body.getEmail(), body.getAvatar());
+    }
+
+    @Operation(summary = "修改密码", description = "当前用户修改自己的登录密码")
+    @PutMapping("/user/password")
+    public void changePassword(HttpServletRequest request, @RequestBody ChangePasswordRequest body) {
+        Long userId = (Long) request.getAttribute(JwtClaims.ID);
+        userService.changePassword(userId, body.getOldPassword(), body.getNewPassword());
     }
 }

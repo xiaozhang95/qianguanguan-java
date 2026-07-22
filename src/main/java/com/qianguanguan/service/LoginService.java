@@ -6,6 +6,7 @@ import com.qianguanguan.entity.User;
 import com.qianguanguan.mapper.UserMapper;
 import com.qianguanguan.model.LoginRequest;
 import com.qianguanguan.model.LoginResponse;
+import com.qianguanguan.model.RegisterRequest;
 import com.qianguanguan.util.Jwt;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
@@ -75,5 +76,27 @@ public class LoginService {
                         .createtime(user.getCreatetime())
                         .build())
                 .build();
+    }
+
+    public void register(RegisterRequest request) {
+        if (!captchaService.validate(request.getCaptchaKey(), request.getCaptchaCode())) {
+            throw new RuntimeException("验证码错误或已过期");
+        }
+
+        User existUser = userMapper.selectOne(
+                new LambdaQueryWrapper<User>()
+                        .eq(User::getUsername, request.getUsername())
+        );
+        if (existUser != null) {
+            throw new RuntimeException("用户名已存在");
+        }
+
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setName(request.getUsername());
+        user.setRole("USER");
+        user.setStatus(1);
+        userMapper.insert(user);
     }
 }

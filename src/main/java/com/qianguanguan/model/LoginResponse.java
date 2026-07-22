@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -43,6 +43,6 @@ public class LoginResponse {
         private String avatar;
 
         @Schema(description = "创建时间")
-        private Date createtime;
+        private LocalDateTime createtime;
     }
 }

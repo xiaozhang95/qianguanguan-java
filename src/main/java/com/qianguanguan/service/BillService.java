@@ -147,8 +147,13 @@ public class BillService {
         billMapper.deleteById(id);
     }
 
-    public BillStatsVO stats(Long userId, String year, String month) {
-        String prefix = year + "-" + (month.length() == 1 ? "0" + month : month);
+    public BillStatsVO stats(Long userId, String year, String month, String day) {
+        String prefix;
+        if (day != null && !day.isEmpty()) {
+            prefix = year + "-" + (month.length() == 1 ? "0" + month : month) + "-" + (day.length() == 1 ? "0" + day : day);
+        } else {
+            prefix = year + "-" + (month.length() == 1 ? "0" + month : month);
+        }
 
         LambdaQueryWrapper<Bill> wrapper = new LambdaQueryWrapper<Bill>()
                 .eq(Bill::getUserId, userId)

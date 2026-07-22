@@ -6,7 +6,7 @@ networks:
 
 services:
   mysql:
-    image: mysql
+    image: mysql:8.4.10
     container_name: mysql
     restart: unless-stopped
     ports:
@@ -37,8 +37,9 @@ services:
       - app-network
     volumes:
       - /opt/apps/qianguanguan/upload:/app/upload
+      - /opt/apps/qianguanguan/logs:/app/logs
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/qianguanguan?characterEncoding=UTF-8&useSSL=false
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/qianguanguan?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: Zzz199519...
       SPRING_DATA_REDIS_HOST: redis

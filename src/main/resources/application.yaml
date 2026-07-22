@@ -16,7 +16,7 @@ spring:
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://127.0.0.1:3306/qianguanguan?characterEncoding=UTF-8&useSSL=false
+    url: jdbc:mysql://127.0.0.1:3306/qianguanguan?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: '00000000'
 server:
@@ -47,3 +47,10 @@ security:
   jwt:
     secret: 1234567890abcdef1234567890abcdef
     expiration: 3600000
+logging:
+  file:
+    path: /app/logs
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30

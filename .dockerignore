@@ -6,5 +6,5 @@ target/
 *.iml
 *.log
 upload/
-init.sql
+sql/
 .opencode/

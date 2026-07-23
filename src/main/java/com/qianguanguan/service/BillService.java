@@ -147,7 +147,7 @@ public class BillService {
         billMapper.deleteById(id);
     }
 
-    public BillStatsVO stats(Long userId, String year, String month, String day) {
+    public BillStatsVO stats(Long userId, String year, String month, String day, String type, Long categoryId) {
         String prefix;
         if (day != null && !day.isEmpty()) {
             prefix = year + "-" + (month.length() == 1 ? "0" + month : month) + "-" + (day.length() == 1 ? "0" + day : day);
@@ -158,6 +158,13 @@ public class BillService {
         LambdaQueryWrapper<Bill> wrapper = new LambdaQueryWrapper<Bill>()
                 .eq(Bill::getUserId, userId)
                 .likeRight(Bill::getBillDate, prefix);
+
+        if (type != null && !type.isEmpty()) {
+            wrapper.eq(Bill::getType, type);
+        }
+        if (categoryId != null) {
+            wrapper.eq(Bill::getCategoryId, categoryId);
+        }
 
         List<Bill> bills = billMapper.selectList(wrapper);
 

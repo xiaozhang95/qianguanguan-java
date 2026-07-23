@@ -16,8 +16,9 @@ public class CategoryService {
 
     private final CategoryMapper categoryMapper;
 
-    public List<Category> list(String type) {
+    public List<Category> list(String type, Long userId) {
         LambdaQueryWrapper<Category> wrapper = new LambdaQueryWrapper<Category>()
+                .and(w -> w.isNull(Category::getUserId).or().eq(Category::getUserId, userId))
                 .orderByAsc(Category::getSort);
         if (type != null && !type.isEmpty()) {
             wrapper.eq(Category::getType, type);
@@ -25,21 +26,36 @@ public class CategoryService {
         return categoryMapper.selectList(wrapper);
     }
 
-    public Category save(CategorySaveRequest request) {
+    public Category save(Long userId, CategorySaveRequest request) {
         Category category = new Category();
         category.setName(request.getName());
         category.setIcon(request.getIcon());
         category.setType(request.getType());
+        category.setUserId(userId);
         category.setSort(request.getSort() != null ? request.getSort() : 0);
         category.setCreatetime(new Date());
         categoryMapper.insert(category);
         return category;
     }
 
-    public Category update(Long id, CategorySaveRequest request) {
+    public Category update(Long userId, Long id, CategorySaveRequest request) {
         Category category = categoryMapper.selectById(id);
         if (category == null) {
             throw new RuntimeException("分类不存在");
+        }
+        if (category.getUserId() == null) {
+            Category copy = new Category();
+            copy.setName(request.getName());
+            copy.setIcon(request.getIcon());
+            copy.setType(request.getType());
+            copy.setUserId(userId);
+            copy.setSort(request.getSort());
+            copy.setCreatetime(new Date());
+            categoryMapper.insert(copy);
+            return copy;
+        }
+        if (!category.getUserId().equals(userId)) {
+            throw new RuntimeException("无权修改此分类");
         }
         category.setName(request.getName());
         category.setIcon(request.getIcon());
@@ -49,7 +65,17 @@ public class CategoryService {
         return category;
     }
 
-    public void delete(Long id) {
+    public void delete(Long userId, Long id) {
+        Category category = categoryMapper.selectById(id);
+        if (category == null) {
+            throw new RuntimeException("分类不存在");
+        }
+        if (category.getUserId() != null && !category.getUserId().equals(userId)) {
+            throw new RuntimeException("无权删除此分类");
+        }
+        if (category.getUserId() == null) {
+            throw new RuntimeException("系统默认分类不可删除");
+        }
         categoryMapper.deleteById(id);
     }
 }

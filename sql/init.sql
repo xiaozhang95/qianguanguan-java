@@ -43,8 +43,9 @@ DROP TABLE IF EXISTS `t_category`;
 CREATE TABLE `t_category` (
     `id`         BIGINT       NOT NULL COMMENT '主键ID',
     `name`       VARCHAR(50)  NOT NULL COMMENT '分类名称',
-    `icon`       VARCHAR(10)  NOT NULL COMMENT '图标（emoji）',
+    `icon`       VARCHAR(500) NOT NULL COMMENT '图标（emoji或图片路径）',
     `type`       VARCHAR(10)  NOT NULL COMMENT '类型：INCOME-收入 / EXPENSE-支出',
+    `user_id`    BIGINT       NULL     COMMENT '用户ID（NULL=系统默认）',
     `sort`       INT          NOT NULL DEFAULT 0 COMMENT '排序',
     `createtime` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (`id`)

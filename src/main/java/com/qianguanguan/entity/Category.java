@@ -20,6 +20,8 @@ public class Category {
 
     private String type;
 
+    private Long userId;
+
     private Integer sort;
 
     private Date createtime;

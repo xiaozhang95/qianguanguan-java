@@ -10,4 +10,8 @@ public class BillStatsRequest {
     private String month;
 
     private String day;
+
+    private String type;
+
+    private Long categoryId;
 }

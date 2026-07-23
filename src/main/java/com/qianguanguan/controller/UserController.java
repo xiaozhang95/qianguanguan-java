@@ -7,6 +7,7 @@ import com.qianguanguan.model.LoginResponse;
 import com.qianguanguan.model.UserListRequest;
 import com.qianguanguan.model.ProfileUpdateRequest;
 import com.qianguanguan.model.ChangePasswordRequest;
+import com.qianguanguan.service.LoginService;
 import com.qianguanguan.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,12 +22,19 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final LoginService loginService;
 
     @Operation(summary = "获取当前用户信息", description = "根据JWT token获取当前登录用户的详细信息")
     @GetMapping("/user/info")
     public LoginResponse.UserInfo userInfo(HttpServletRequest request) {
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
         return userService.getUserInfo(userId);
+    }
+
+    @Operation(summary = "微信登录", description = "通过微信小程序code进行登录或注册，返回JWT token和用户信息")
+    @GetMapping("/user/LoginByWid")
+    public LoginResponse loginByWid(@RequestParam String code) {
+        return loginService.loginByWid(code);
     }
 
     @Operation(summary = "用户列表", description = "分页查询用户，支持用户名、角色、状态筛选")

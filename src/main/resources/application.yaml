@@ -38,6 +38,7 @@ security:
     - /api/business/login
     - /api/business/register
     - /api/business/captcha
+    - /api/business/user/LoginByWid
   swagger-paths:
     - /v3/api-docs
     - /v3/api-docs/**
@@ -48,6 +49,9 @@ security:
   jwt:
     secret: 1234567890abcdef1234567890abcdef
     expiration: 3600000
+  wx:
+    app-id: wx903b1451e69039df
+    app-secret: 11a93b7173bb2fd2a7824d044c69ce82
 logging:
   file:
     path: ./logs

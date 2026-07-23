@@ -18,10 +18,18 @@ public class SecurityProperties {
 
     private JwtConfig jwt;
 
+    private WxConfig wx;
+
     @Data
     public static class JwtConfig {
         private String secret;
         private Long expiration;
+    }
+
+    @Data
+    public static class WxConfig {
+        private String appId;
+        private String appSecret;
     }
 
     public String[] getAllWhitelist() {

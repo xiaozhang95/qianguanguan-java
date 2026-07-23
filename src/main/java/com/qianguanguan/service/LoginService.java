@@ -28,6 +28,7 @@ public class LoginService {
     private final CaptchaService captchaService;
     private final SecurityProperties securityProperties;
     private final StringRedisTemplate stringRedisTemplate;
+    private final WxService wxService;
 
     public LoginResponse.UserInfo getUserInfo(Long userId) {
         return userService.getUserInfo(userId);
@@ -73,6 +74,52 @@ public class LoginService {
                         .role(user.getRole())
                         .phone(user.getPhone())
                         .email(user.getEmail())
+                        .createtime(user.getCreatetime())
+                        .build())
+                .build();
+    }
+
+    public LoginResponse loginByWid(String code) {
+        String openId = wxService.getOpenId(code);
+
+        User user = userMapper.selectOne(
+                new LambdaQueryWrapper<User>().eq(User::getWid, openId)
+        );
+
+        if (user == null) {
+            user = new User();
+            user.setUsername("wx_" + openId.substring(0, 8));
+            user.setPassword(passwordEncoder.encode(openId));
+            user.setName("钱罐罐用户_" + openId.substring(0, 4));
+            user.setRole("USER");
+            user.setStatus(1);
+            user.setWid(openId);
+            userMapper.insert(user);
+        }
+
+        Date now = new Date();
+        Key key = Keys.hmacShaKeyFor(securityProperties.getJwt().getSecret().getBytes());
+        Date expirationDate = new Date(now.getTime() + securityProperties.getJwt().getExpiration());
+
+        String token = Jwt.generateToken(user.getId(), user.getRole(), key, now, expirationDate);
+
+        stringRedisTemplate.opsForValue().set(
+                "user_" + user.getId(),
+                String.valueOf(now.getTime()),
+                securityProperties.getJwt().getExpiration(),
+                TimeUnit.MILLISECONDS
+        );
+
+        return LoginResponse.builder()
+                .token(token)
+                .userInfo(LoginResponse.UserInfo.builder()
+                        .id(user.getId())
+                        .username(user.getUsername())
+                        .name(user.getName())
+                        .role(user.getRole())
+                        .phone(user.getPhone())
+                        .email(user.getEmail())
+                        .avatar(user.getAvatar())
                         .createtime(user.getCreatetime())
                         .build())
                 .build();

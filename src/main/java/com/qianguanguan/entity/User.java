@@ -30,5 +30,7 @@ public class User {
 
     private String avatar;
 
+    private String wid;
+
     private LocalDateTime createtime;
 }

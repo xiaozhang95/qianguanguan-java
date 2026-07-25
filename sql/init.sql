@@ -21,17 +21,16 @@ CREATE TABLE `t_user` (
     `phone`      VARCHAR(20)  DEFAULT NULL COMMENT '手机号',
     `email`      VARCHAR(100) DEFAULT NULL COMMENT '邮箱',
     `status`     TINYINT      NOT NULL DEFAULT 1 COMMENT '状态：1-启用 0-禁用',
-    `avatar`     VARCHAR(500) DEFAULT NULL COMMENT '头像路径',
+    `avatar`     LONGTEXT     DEFAULT NULL COMMENT '头像路径',
+    `wid`        VARCHAR(100) DEFAULT NULL COMMENT '微信OpenID',
     `createtime` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_username` (`username`)
+    UNIQUE KEY `uk_username` (`username`),
+    UNIQUE KEY `uk_wid` (`wid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户表';
 
 -- --------------------------------------------
 -- 默认管理员 admin / 123456
--- 头像字段如已建表后追加，执行：
--- ALTER TABLE `t_user` ADD COLUMN `avatar` VARCHAR(500) DEFAULT NULL COMMENT '头像路径';
--- --------------------------------------------
 -- --------------------------------------------
 INSERT INTO `t_user` (`id`, `username`, `password`, `name`, `role`, `phone`, `email`, `status`, `avatar`, `createtime`)
 VALUES (1, 'admin', '$2b$10$DCutU/Klf3dOGH/qFgPekO4lcozfrHVyXKMONmhsny6NpDH7zbRw.', '系统管理员', 'SUPER_ADMIN', '13800000000', 'admin@qianguanguan.com', 1, NULL, NOW());

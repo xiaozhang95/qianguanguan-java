@@ -39,6 +39,7 @@ security:
     - /api/business/register
     - /api/business/captcha
     - /api/business/user/LoginByWid
+    - /api/business/qr-login/**
   swagger-paths:
     - /v3/api-docs
     - /v3/api-docs/**

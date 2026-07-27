@@ -108,7 +108,7 @@ public class UserService {
         user.setName(name);
         user.setPhone(phone);
         user.setEmail(email);
-        if (avatar != null) {
+        if (avatar != null && !avatar.isEmpty()) {
             user.setAvatar(avatar);
         }
         userMapper.updateById(user);

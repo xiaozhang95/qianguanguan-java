@@ -34,6 +34,7 @@ public class UserService {
                 .phone(user.getPhone())
                 .email(user.getEmail())
                 .avatar(user.getAvatar())
+                .wid(user.getWid())
                 .createtime(user.getCreatetime())
                 .build();
     }
@@ -117,6 +118,7 @@ public class UserService {
                 .phone(user.getPhone())
                 .email(user.getEmail())
                 .avatar(user.getAvatar())
+                .wid(user.getWid())
                 .createtime(user.getCreatetime())
                 .build();
     }

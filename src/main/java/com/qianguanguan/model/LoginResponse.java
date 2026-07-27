@@ -42,6 +42,9 @@ public class LoginResponse {
         @Schema(description = "头像")
         private String avatar;
 
+        @Schema(description = "微信OpenID")
+        private String wid;
+
         @Schema(description = "创建时间")
         private LocalDateTime createtime;
     }

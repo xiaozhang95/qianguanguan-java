@@ -55,6 +55,7 @@ public class LoginService {
                         .phone(user.getPhone())
                         .email(user.getEmail())
                         .avatar(user.getAvatar())
+                        .wid(user.getWid())
                         .createtime(user.getCreatetime())
                         .build())
                 .build();

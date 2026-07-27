@@ -8,6 +8,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.web.client.ResponseErrorHandler;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -111,21 +115,50 @@ public class WxService {
                 "width", 280
         );
 
-        try {
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            byte[] imageBytes = restTemplate.postForObject(url, request, byte[].class);
+        RestTemplate noErrorRestTemplate = new RestTemplate();
+        noErrorRestTemplate.setErrorHandler(new ResponseErrorHandler() {
+            @Override
+            public boolean hasError(ClientHttpResponse response) {
+                return false;
+            }
 
-            // 成功时返回图片二进制，失败时返回 JSON 错误信息（通常 < 1000 字节）
-            if (imageBytes == null || imageBytes.length < 1000) {
-                String errorJson = imageBytes != null ? new String(imageBytes) : "null";
-                log.error("获取小程序码失败: {}", errorJson);
-                return null;
+            @Override
+            public void handleError(ClientHttpResponse response) {
+            }
+        });
+
+        try {
+            String requestBody = objectMapper.writeValueAsString(body);
+            log.info("获取小程序码请求: url={}, body={}", url, requestBody);
+            HttpEntity<String> requestEntity = new HttpEntity<>(requestBody, headers);
+            ResponseEntity<byte[]> responseEntity = noErrorRestTemplate.exchange(url, HttpMethod.POST, requestEntity, byte[].class);
+            byte[] imageBytes = responseEntity.getBody();
+
+            if (!responseEntity.getStatusCode().is2xxSuccessful() || imageBytes == null || imageBytes.length < 1000) {
+                String errorJson = imageBytes != null ? new String(imageBytes) : "{}";
+                log.error("获取小程序码失败: status={}, body={}", responseEntity.getStatusCode(), errorJson);
+                try {
+                    JsonNode errorNode = objectMapper.readTree(errorJson);
+                    JsonNode errcodeNode = errorNode.get("errcode");
+                    if (errcodeNode != null) {
+                        int errcode = errcodeNode.asInt();
+                        if (errcode == 412 || errcode == 45009 || errcode == 85075) {
+                            throw new RuntimeException("微信扫码登录暂不可用：小程序尚未发布上线，请先在微信公众平台提交审核并发布小程序");
+                        }
+                    }
+                } catch (RuntimeException e) {
+                    throw e;
+                } catch (Exception ignored) {
+                }
+                throw new RuntimeException("获取小程序码失败，错误: " + errorJson);
             }
 
             return "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(imageBytes);
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
             log.error("获取小程序码异常", e);
-            return null;
+            throw new RuntimeException("获取小程序码失败");
         }
     }
 }

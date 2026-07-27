@@ -96,12 +96,12 @@ public class WxService {
     /**
      * 调用微信 getwxacodeunlimit 生成小程序码（base64 图片）
      * 注意：要求小程序已发布上线，开发阶段无法使用
-     *
-     * @param scene 场景值，扫码后传入小程序 onLoad(options.scene)，最长 32 字符
-     * @param page  小程序页面路径，如 "pages/qr-login/index"
-     * @return base64 图片 data URL，失败返回 null
      */
     public String getWxaCode(String scene, String page) {
+        return doGetWxaCode(scene, page, true);
+    }
+
+    private String doGetWxaCode(String scene, String page, boolean retryOnAuthError) {
         String accessToken = getAccessToken();
         String url = "https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=" + accessToken;
 
@@ -121,7 +121,6 @@ public class WxService {
             public boolean hasError(ClientHttpResponse response) {
                 return false;
             }
-
             @Override
             public void handleError(ClientHttpResponse response) {
             }
@@ -142,7 +141,12 @@ public class WxService {
                     JsonNode errcodeNode = errorNode.get("errcode");
                     if (errcodeNode != null) {
                         int errcode = errcodeNode.asInt();
-                        if (errcode == 412 || errcode == 45009 || errcode == 85075) {
+                        if ((errcode == 40001 || errcode == 40003) && retryOnAuthError) {
+                            log.info("access_token失效，清除缓存后重试");
+                            stringRedisTemplate.delete(ACCESS_TOKEN_KEY);
+                            return doGetWxaCode(scene, page, false);
+                        }
+                        if (errcode == 45009 || errcode == 85075) {
                             throw new RuntimeException("微信扫码登录暂不可用：小程序尚未发布上线，请先在微信公众平台提交审核并发布小程序");
                         }
                     }

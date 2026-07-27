@@ -88,7 +88,9 @@ public class UserService {
             throw new RuntimeException("用户不存在");
         }
 
-        if (email != null && !email.equals(user.getEmail())) {
+        boolean emailChanged = email != null && !email.equals(user.getEmail())
+                && !(email.isEmpty() && user.getEmail() == null);
+        if (emailChanged) {
             if (emailCode == null || emailCode.isEmpty()) {
                 throw new RuntimeException("修改邮箱需要验证码");
             }

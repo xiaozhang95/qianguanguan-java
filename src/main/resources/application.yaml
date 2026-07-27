@@ -55,6 +55,8 @@ security:
     - /api/business/send-email-code
     - /api/business/user/LoginByWid
     - /api/business/qr-login/**
+    - /api/business/wechat-bind/status
+    - /api/business/wechat-bind/confirm
   swagger-paths:
     - /v3/api-docs
     - /v3/api-docs/**

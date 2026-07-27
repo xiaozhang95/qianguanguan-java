@@ -36,7 +36,7 @@ public class QrLoginService {
     private static final int SCENE_EXPIRE_SECONDS = 300;
     private static final String STATUS_PENDING = "pending";
     private static final String STATUS_CONFIRMED = "confirmed";
-    private static final String WXA_PAGE = "pages/qr-login/index";
+    private static final String WXA_PAGE = "pages/home/index";
 
     private final StringRedisTemplate stringRedisTemplate;
     private final UserMapper userMapper;
@@ -57,7 +57,7 @@ public class QrLoginService {
         stringRedisTemplate.opsForHash().putAll(REDIS_PREFIX + sceneId, sceneData);
         stringRedisTemplate.expire(REDIS_PREFIX + sceneId, SCENE_EXPIRE_SECONDS, TimeUnit.SECONDS);
 
-        String qrImage = wxService.getWxaCode(sceneId, WXA_PAGE);
+        String qrImage = wxService.getWxaCode("login:" + sceneId, WXA_PAGE);
         if (qrImage == null) {
             throw new RuntimeException("生成小程序码失败");
         }

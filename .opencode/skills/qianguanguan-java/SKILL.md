@@ -142,7 +142,28 @@ security:
     - /upload/**
     - /api/business/login
     - /api/business/register
+    - /api/business/captcha
+    - /api/business/send-email-code
 ```
+
+## 邮箱验证码
+
+`EmailService` 负责发送和校验邮箱验证码：
+
+- 发送前检查 Redis 限频 key `email_rate:{email}`（60 秒内不可重复发送）
+- 发送前检查邮箱是否已被注册
+- 生成 6 位数字验证码，通过 `JavaMailSender` 发送
+- 验证码存入 Redis `email_code:{email}`，5 分钟过期
+- 校验时读取 Redis 并立即删除（一次性使用）
+- 注册和修改个人信息均复用此服务
+
+## 用户注册规则
+
+- 注册使用邮箱 + 邮箱验证码 + 密码 + 图形验证码
+- `username` 自动设为邮箱地址
+- `name` 自动取邮箱 `@` 前部分
+- 注册成功直接返回 JWT token，无需二次登录
+- `buildLoginResponse()` 为登录/注册/微信登录通用的 token 生成方法
 
 ## 日志
 

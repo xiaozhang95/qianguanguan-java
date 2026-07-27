@@ -19,6 +19,20 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/qianguanguan?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: '00000000'
+  mail:
+    host: smtp.qq.com
+    port: 587
+    username: 89981452@qq.com
+    password: yvcacnfzpqzrbibe
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          ssl:
+            trust: smtp.qq.com
 server:
   port: 8888
 springdoc:
@@ -38,6 +52,7 @@ security:
     - /api/business/login
     - /api/business/register
     - /api/business/captcha
+    - /api/business/send-email-code
     - /api/business/user/LoginByWid
     - /api/business/qr-login/**
   swagger-paths:

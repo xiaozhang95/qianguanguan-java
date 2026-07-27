@@ -19,6 +19,7 @@ public class UserService {
     private final UserMapper userMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     public LoginResponse.UserInfo getUserInfo(Long userId) {
         User user = userMapper.selectById(userId);
@@ -80,11 +81,27 @@ public class UserService {
         stringRedisTemplate.delete("user_" + id);
     }
 
-    public LoginResponse.UserInfo updateProfile(Long userId, String name, String phone, String email, String avatar) {
+    public LoginResponse.UserInfo updateProfile(Long userId, String name, String phone, String email, String emailCode, String avatar) {
         User user = userMapper.selectById(userId);
         if (user == null) {
             throw new RuntimeException("用户不存在");
         }
+
+        if (email != null && !email.equals(user.getEmail())) {
+            if (emailCode == null || emailCode.isEmpty()) {
+                throw new RuntimeException("修改邮箱需要验证码");
+            }
+            if (!emailService.validate(email, emailCode)) {
+                throw new RuntimeException("邮箱验证码错误或已过期");
+            }
+            User existEmailUser = userMapper.selectOne(
+                    new LambdaQueryWrapper<User>().eq(User::getEmail, email)
+            );
+            if (existEmailUser != null && !existEmailUser.getId().equals(userId)) {
+                throw new RuntimeException("该邮箱已被其他用户使用");
+            }
+        }
+
         user.setName(name);
         user.setPhone(phone);
         user.setEmail(email);

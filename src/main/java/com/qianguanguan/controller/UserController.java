@@ -62,7 +62,7 @@ public class UserController {
     @PutMapping("/user/profile")
     public LoginResponse.UserInfo updateProfile(HttpServletRequest request, @RequestBody ProfileUpdateRequest body) {
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
-        return userService.updateProfile(userId, body.getName(), body.getPhone(), body.getEmail(), body.getAvatar());
+        return userService.updateProfile(userId, body.getName(), body.getPhone(), body.getEmail(), body.getEmailCode(), body.getAvatar());
     }
 
     @Operation(summary = "修改密码", description = "当前用户修改自己的登录密码")

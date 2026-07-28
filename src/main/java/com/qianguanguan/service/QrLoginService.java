@@ -36,7 +36,7 @@ public class QrLoginService {
     private static final int SCENE_EXPIRE_SECONDS = 300;
     private static final String STATUS_PENDING = "pending";
     private static final String STATUS_CONFIRMED = "confirmed";
-    private static final String WXA_PAGE = "pages/home/index";
+    private static final String WXA_PAGE = "pages/bill/index";
 
     private final StringRedisTemplate stringRedisTemplate;
     private final UserMapper userMapper;

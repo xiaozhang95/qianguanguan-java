@@ -97,7 +97,7 @@ public class LoginService {
             user = new User();
             user.setUsername("wx_" + openId.substring(0, 8));
             user.setPassword(passwordEncoder.encode(openId));
-            user.setName("钱罐罐用户_" + openId.substring(0, 4));
+            user.setName("钱罐罐记账用户_" + openId.substring(0, 4));
             user.setRole("USER");
             user.setStatus(1);
             user.setWid(openId);

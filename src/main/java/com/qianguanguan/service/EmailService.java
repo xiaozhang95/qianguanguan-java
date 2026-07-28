@@ -58,7 +58,7 @@ public class EmailService {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom("89981452@qq.com");
         message.setTo(email);
-        message.setSubject("钱罐罐 - 邮箱验证码");
+        message.setSubject("钱罐罐记账 - 邮箱验证码");
         message.setText("您的验证码是：" + code + "，有效期为" + CODE_EXPIRE_MINUTES + "分钟，请勿泄露给他人。");
         mailSender.send(message);
     }

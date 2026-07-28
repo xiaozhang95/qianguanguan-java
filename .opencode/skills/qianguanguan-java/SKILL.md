@@ -3,7 +3,7 @@ name: qianguanguan-java
 description: Use when writing or modifying Java backend code in qianguanguan-java/. Covers Spring Boot 3, MyBatis-Plus, JWT auth, project conventions, and database management.
 ---
 
-# 钱罐罐 后端规范
+# 钱罐罐记账 后端规范
 
 ## 项目技术栈
 

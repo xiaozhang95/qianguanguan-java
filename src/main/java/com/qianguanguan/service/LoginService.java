@@ -2,12 +2,14 @@ package com.qianguanguan.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.qianguanguan.configuration.SecurityProperties;
+import com.qianguanguan.constant.JwtClaims;
 import com.qianguanguan.entity.User;
 import com.qianguanguan.mapper.UserMapper;
 import com.qianguanguan.model.LoginRequest;
 import com.qianguanguan.model.LoginResponse;
 import com.qianguanguan.model.RegisterRequest;
 import com.qianguanguan.util.Jwt;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -41,7 +43,7 @@ public class LoginService {
         stringRedisTemplate.opsForValue().set(
                 "user_" + user.getId(),
                 String.valueOf(now.getTime()),
-                securityProperties.getJwt().getExpiration(),
+                securityProperties.getJwt().getExpiration() + 24 * 60 * 60 * 1000,
                 TimeUnit.MILLISECONDS
         );
 
@@ -131,6 +133,20 @@ public class LoginService {
         user.setRole("USER");
         user.setStatus(1);
         userMapper.insert(user);
+
+        return buildLoginResponse(user);
+    }
+
+    public LoginResponse refreshToken(String token) {
+        Key key = Keys.hmacShaKeyFor(securityProperties.getJwt().getSecret().getBytes());
+        Claims claims = Jwt.parserTokenLenient(token, key);
+
+        Long id = claims.get(JwtClaims.ID, Long.class);
+
+        User user = userMapper.selectById(id);
+        if (user == null || user.getStatus() != 1) {
+            throw new RuntimeException("用户不存在或已禁用");
+        }
 
         return buildLoginResponse(user);
     }

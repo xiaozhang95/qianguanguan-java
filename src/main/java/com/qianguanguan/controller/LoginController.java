@@ -10,6 +10,7 @@ import com.qianguanguan.service.EmailService;
 import com.qianguanguan.service.LoginService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,5 +46,15 @@ public class LoginController {
     @PostMapping("/register")
     public LoginResponse register(@RequestBody RegisterRequest request) {
         return loginService.register(request);
+    }
+
+    @Operation(summary = "刷新token", description = "使用当前token换取新token")
+    @PostMapping("/token/refresh")
+    public LoginResponse refreshToken(HttpServletRequest request) {
+        String authorization = request.getHeader("Authorization");
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            throw new RuntimeException("缺少token");
+        }
+        return loginService.refreshToken(authorization.substring(7));
     }
 }

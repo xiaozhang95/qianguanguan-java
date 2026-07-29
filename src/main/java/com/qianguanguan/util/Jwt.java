@@ -2,6 +2,7 @@ package com.qianguanguan.util;
 
 import com.qianguanguan.constant.JwtClaims;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.slf4j.Slf4j;
@@ -30,5 +31,17 @@ public class Jwt {
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+    }
+
+    public static Claims parserTokenLenient(String token, Key key) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (ExpiredJwtException e) {
+            return e.getClaims();
+        }
     }
 }

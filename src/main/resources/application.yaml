@@ -57,6 +57,7 @@ security:
     - /api/business/qr-login/**
     - /api/business/wechat-bind/status
     - /api/business/wechat-bind/confirm
+    - /api/business/token/refresh
   swagger-paths:
     - /v3/api-docs
     - /v3/api-docs/**

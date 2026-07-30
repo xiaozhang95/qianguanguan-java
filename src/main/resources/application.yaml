@@ -49,6 +49,7 @@ security:
   whitelist:
     - /upload/**
     - /upload
+    - /api/business/upload
     - /api/business/login
     - /api/business/register
     - /api/business/captcha

@@ -31,6 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
-/logs
-/upload
+logs/
+upload/
 qianguanguan.tar

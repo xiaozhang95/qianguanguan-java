@@ -19,7 +19,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-
+/**
+ * 全局响应处理器
+ * <p>
+ * 实现 ResponseBodyAdvice 统一包装响应体为 {@link Response} 格式，
+ * 同时提供全局异常处理将业务异常转为标准 JSON 错误响应
+ */
 @Slf4j
 @RestControllerAdvice
 public class GlobalResponseHandler implements ResponseBodyAdvice<Object> {
@@ -30,6 +35,11 @@ public class GlobalResponseHandler implements ResponseBodyAdvice<Object> {
         this.securityProperties = securityProperties;
     }
 
+    /**
+     * 全局异常处理
+     * 将 AuthenticationException/AccessDeniedException 抛给 Security 框架处理，
+     * 其余异常统一包装为 Response.error
+     */
     @ExceptionHandler(value = Exception.class)
     public Response<Object> exceptionHandler(Exception e) throws Exception {
         log.error(e.getMessage(), e);
@@ -45,11 +55,19 @@ public class GlobalResponseHandler implements ResponseBodyAdvice<Object> {
         return Response.error(e.getMessage());
     }
 
+    /**
+     * 判断是否需要包装响应体
+     * 已经是 Response 类型的返回值不再包装
+     */
     @Override
     public boolean supports(MethodParameter returnType, @NonNull Class<? extends HttpMessageConverter<?>> converterType) {
         return !returnType.getParameterType().equals(Response.class);
     }
 
+    /**
+     * 在响应体写入前统一包装
+     * Swagger 路径和 String 类型特殊处理，其余用 Response.success 包装
+     */
     @Override
     public Object beforeBodyWrite(Object body,
                                   @NonNull MethodParameter returnType,

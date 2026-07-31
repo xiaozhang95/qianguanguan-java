@@ -6,9 +6,19 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
+/**
+ * Redis 序列化配置
+ * <p>
+ * 统一使用 StringRedisSerializer，避免 JDK 默认序列化导致的问题
+ */
 @Configuration
 public class RedisTemplateConfig {
 
+    /**
+     * 配置 RedisTemplate
+     * key/value/hashKey/hashValue 均使用 StringRedisSerializer，
+     * 并开启事务支持
+     */
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {
    

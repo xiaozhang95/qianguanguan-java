@@ -20,6 +20,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 import java.io.IOException;
 
+/**
+ * Spring Security 安全配置
+ * <p>
+ * 基于 JWT 的无状态认证方案：关闭 CSRF/表单登录/HTTP Basic/Session，
+ * 白名单路径放行，其余请求由 JwtAuthenticationFilter 拦截校验
+ */
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
@@ -32,6 +38,16 @@ public class SecurityConfig {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
+    /**
+     * 配置安全过滤链
+     * <ul>
+     *   <li>关闭 CSRF、表单登录、HTTP Basic、默认登出</li>
+     *   <li>无状态 Session 管理</li>
+     *   <li>白名单路径直接放行</li>
+     *   <li>未认证返回 401 JSON，无权限返回 403 JSON</li>
+     *   <li>在 UsernamePasswordAuthenticationFilter 之前插入 JWT 过滤器</li>
+     * </ul>
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -59,16 +75,26 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * 内存用户详情服务（占位）
+     * 实际用户认证由 JWT 过滤器处理，此处仅满足 Security 框架要求
+     */
     @Bean
     public UserDetailsService userDetailsService() {
         return new InMemoryUserDetailsManager();
     }
 
+    /**
+     * BCrypt 密码编码器
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * 向客户端写入 JSON 格式的错误响应
+     */
     private void writeJsonResponse(HttpServletResponse response, int code, String msg) throws IOException {
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_OK);

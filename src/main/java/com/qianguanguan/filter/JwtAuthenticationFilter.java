@@ -27,6 +27,17 @@ import java.security.Key;
 import java.util.Date;
 import java.util.List;
 
+/**
+ * JWT 认证过滤器
+ * <p>
+ * 每次请求只执行一次，负责：
+ * <ol>
+ *   <li>白名单路径直接放行</li>
+ *   <li>解析 Authorization 头中的 Bearer Token</li>
+ *   <li>校验 Token 有效性（签名 + Redis 缓存时间戳）</li>
+ *   <li>通过后将用户信息写入 SecurityContext 和 Request 属性</li>
+ * </ol>
+ */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -39,12 +50,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.securityProperties = securityProperties;
     }
 
+    /**
+     * 核心过滤逻辑
+     * 白名单放行 → 解析 Token → Redis 校验 → 设置 SecurityContext
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain chain)
             throws ServletException, IOException {
 
+        // 白名单路径直接放行
         String requestPath = request.getRequestURI();
         for (String whitelistPath : securityProperties.getAllWhitelist()) {
             if (pathMatcher.match(whitelistPath, requestPath)) {
@@ -53,6 +69,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
+        // 解析 Bearer Token
         String Authorization = request.getHeader("Authorization");
         if (Authorization != null && Authorization.startsWith("Bearer ")) {
             try {
@@ -64,16 +81,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String role = claims.get(JwtClaims.ROLE, String.class);
                 Long id = claims.get(JwtClaims.ID, Long.class);
 
+                // 与 Redis 中存储的签发时间戳对比，防止伪造或过期 Token
                 Date date = claims.get(JwtClaims.DATE, Date.class);
                 String cacheDate = stringRedisTemplate.opsForValue().get("user_" + id);
 
                 if (cacheDate != null && Long.parseLong(cacheDate) == date.getTime()) {
+                    // 设置 Spring Security 认证信息
                     var authentication = new UsernamePasswordAuthenticationToken(
                             null, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
 
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
 
+                    // 将用户信息写入 Request 属性，方便 Controller 层直接获取
                     request.setAttribute(JwtClaims.ROLE, role);
                     request.setAttribute(JwtClaims.ID, id);
                 } else {
@@ -88,6 +108,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 
+    /**
+     * 返回 Token 过期的 JSON 错误响应
+     */
     private void writeJsonResponse(HttpServletResponse response) throws IOException {
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_OK);

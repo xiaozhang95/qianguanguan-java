@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 // --- Spring Data Redis ---
 // StringRedisTemplate：操作 Redis String 类型，用于缓存 access_token
+import org.jspecify.annotations.NonNull;
 import org.springframework.data.redis.core.StringRedisTemplate;
 // --- Spring HTTP 请求/响应 ---
 // HttpEntity：封装 HTTP 请求的 Header 和 Body
@@ -34,6 +35,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 // --- Java 基础库 ---
+import java.net.URI;               // URI（handleError 方法签名需要）
 import java.util.Base64;           // Base64 编解码（图片字节 → base64 字符串）
 import java.util.Map;              // 映射表（构建微信 API 请求体）
 import java.util.concurrent.TimeUnit; // 时间单位（Redis 过期时间）
@@ -86,7 +88,7 @@ public class WxService {
      * <p>
      * 调用微信小程序的 <b>jscode2session</b> 接口：
      * <ul>
-     *   <li>URL：https://api.weixin.qq.com/sns/jscode2session</li>
+     *   <li>URL：<a href="https://api.weixin.qq.com/sns/jscode2session">...</a></li>
      *   <li>参数：appid、secret、js_code、grant_type=authorization_code</li>
      *   <li>成功返回：{openid, session_key, unionid(可选)}</li>
      *   <li>失败返回：{errcode, errmsg}</li>
@@ -193,7 +195,7 @@ public class WxService {
      * <p>
      * 这是一个<b>不限数量</b>的小程序码生成接口（区别于有限数量的 createWXAQRCode）：
      * <ul>
-     *   <li>URL：POST https://api.weixin.qq.com/wxa/getwxacodeunlimit</li>
+     *   <li>URL：POST <a href="https://api.weixin.qq.com/wxa/getwxacodeunlimit">...</a></li>
      *   <li>请求体：{scene, page, check_path, width}</li>
      *   <li>成功返回：二进制图片数据</li>
      *   <li>失败返回：JSON 错误信息</li>
@@ -249,14 +251,14 @@ public class WxService {
         // setErrorHandler：设置自定义错误处理器
         noErrorRestTemplate.setErrorHandler(new ResponseErrorHandler() {
             @Override
-            public boolean hasError(ClientHttpResponse response) {
+            public boolean hasError(@NonNull ClientHttpResponse response) {
                 // 永远返回 false：告诉 RestTemplate "没有错误"
                 // 这样即使 HTTP 状态码不是 2xx 也不会抛异常
                 return false;
             }
 
             @Override
-            public void handleError(ClientHttpResponse response) {
+            public void handleError(@NonNull URI url, @NonNull HttpMethod method, @NonNull ClientHttpResponse response) {
                 // 空实现：不处理（因为 hasError 返回 false，此方法不会被调用）
                 // 但接口要求实现，所以留空
             }

@@ -1,37 +1,24 @@
 package com.qianguanguan.service;
 
-// --- MyBatis-Plus 查询条件 ---
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-// --- 安全配置属性（JWT 密钥、过期时间） ---
 import com.qianguanguan.configuration.SecurityProperties;
-// --- JWT Claims 字段名常量 ---
 import com.qianguanguan.constant.JwtClaims;
-// --- 用户实体 ---
 import com.qianguanguan.entity.User;
-// --- 用户表 Mapper ---
 import com.qianguanguan.mapper.UserMapper;
-// --- 请求/响应模型 ---
 import com.qianguanguan.model.LoginRequest;
 import com.qianguanguan.model.LoginResponse;
 import com.qianguanguan.model.RegisterRequest;
-// --- JWT 工具类 ---
 import com.qianguanguan.util.Jwt;
-// --- JWT 解析 ---
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.security.Keys;
-// --- Lombok ---
 import lombok.RequiredArgsConstructor;
-// --- Redis 操作 ---
 import org.springframework.data.redis.core.StringRedisTemplate;
-// --- 密码加密 ---
 import org.springframework.security.crypto.password.PasswordEncoder;
-// --- Spring ---
 import org.springframework.stereotype.Service;
 
-// --- Java 基础库 ---
-import java.security.Key;          // JWT 签名密钥
-import java.util.Date;             // 日期
-import java.util.concurrent.TimeUnit; // 时间单位
+import java.security.Key;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 登录业务服务
@@ -44,13 +31,20 @@ import java.util.concurrent.TimeUnit; // 时间单位
 public class LoginService {
 
     // --- 依赖注入 ---
-    private final UserMapper userMapper;               // 用户表操作
-    private final PasswordEncoder passwordEncoder;      // BCrypt 密码编码器
-    private final CaptchaService captchaService;        // 图形验证码服务
-    private final EmailService emailService;            // 邮箱验证码服务
-    private final SecurityProperties securityProperties; // JWT 和微信配置
-    private final StringRedisTemplate stringRedisTemplate; // Redis 操作
-    private final WxService wxService;                  // 微信 API 服务
+    // 用户表操作
+    private final UserMapper userMapper;
+    // BCrypt 密码编码器
+    private final PasswordEncoder passwordEncoder;
+    // 图形验证码服务
+    private final CaptchaService captchaService;
+    // 邮箱验证码服务
+    private final EmailService emailService;
+    // JWT 和微信配置
+    private final SecurityProperties securityProperties;
+    // Redis 操作
+    private final StringRedisTemplate stringRedisTemplate;
+    // 微信 API 服务
+    private final WxService wxService;
 
     /**
      * 构建登录响应（生成 JWT Token + 缓存到 Redis）
@@ -68,46 +62,69 @@ public class LoginService {
      */
     private LoginResponse buildLoginResponse(User user) {
         // --- 1. 准备 JWT 生成参数 ---
-        Date now = new Date(); // 当前时间作为签发时间
-        // 从配置中获取 JWT 密钥，通过 HMAC-SHA256 算法创建签名 Key
+        // 当前时间作为签发时间
+        Date now = new Date();
+        // 由配置的密钥字节构建 HMAC-SHA256 签名 Key
         Key key = Keys.hmacShaKeyFor(securityProperties.getJwt().getSecret().getBytes());
-        // 过期时间 = 当前时间 + 配置的过期时长（毫秒）
+        // 过期时刻 = 签发时间 + 配置的有效期
         Date expirationDate = new Date(now.getTime() + securityProperties.getJwt().getExpiration());
 
         // --- 2. 生成 JWT Token ---
+        // 签发 JWT Token
         String token = Jwt.generateToken(
-                user.getId(),   // 存入用户ID
-                user.getRole(), // 存入用户角色
-                key,            // 签名密钥
-                now,            // 签发时间
-                expirationDate  // 过期时间
+                // 存入用户ID
+                user.getId(),
+                // 存入用户角色
+                user.getRole(),
+                // 签名密钥
+                key,
+                // 签发时间
+                now,
+                // 过期时间
+                expirationDate
         );
 
         // --- 3. 将签发时间戳缓存到 Redis ---
-        // Key: user_{用户ID}  Value: 签发时间戳（毫秒）
-        // 过期时间 = JWT 过期时间 + 24 小时，即 Redis 缓存比 Token 多活 24 小时
-        // 这样即使用户 Token 过期，仍可在宽松期内刷新 Token
+        // 缓存签发时间戳，供 JWT 过滤器校验
         stringRedisTemplate.opsForValue().set(
-                "user_" + user.getId(),                 // Redis Key
-                String.valueOf(now.getTime()),          // 签发时间戳（转为字符串）
-                securityProperties.getJwt().getExpiration() + 24 * 60 * 60 * 1000, // TTL
-                TimeUnit.MILLISECONDS                   // 时间单位：毫秒
+                // Redis Key：user_{用户ID}
+                "user_" + user.getId(),
+                // 签发时间戳（转为字符串）
+                String.valueOf(now.getTime()),
+                // TTL = Token 有效期 + 24 小时，预留刷新期
+                securityProperties.getJwt().getExpiration() + 24 * 60 * 60 * 1000,
+                // 时间单位：毫秒
+                TimeUnit.MILLISECONDS
         );
 
         // --- 4. 构建响应 ---
+        // 构建登录响应
         return LoginResponse.builder()
-                .token(token) // JWT Token（含 "Bearer " 前缀）
+                // JWT Token（含 "Bearer " 前缀）
+                .token(token)
+                // 构建嵌套的用户信息
                 .userInfo(LoginResponse.UserInfo.builder()
+                        // 用户ID
                         .id(user.getId())
+                        // 用户名
                         .username(user.getUsername())
+                        // 昵称
                         .name(user.getName())
+                        // 角色
                         .role(user.getRole())
+                        // 手机号
                         .phone(user.getPhone())
+                        // 邮箱
                         .email(user.getEmail())
+                        // 头像
                         .avatar(user.getAvatar())
-                        .wid(user.getWid())        // 微信 OpenID
+                        // 微信 OpenID
+                        .wid(user.getWid())
+                        // 创建时间
                         .createtime(user.getCreatetime())
+                        // 完成 UserInfo
                         .build())
+                // 完成 LoginResponse
                 .build();
     }
 
@@ -127,29 +144,37 @@ public class LoginService {
      */
     public LoginResponse login(LoginRequest request) {
         // --- 1. 校验图形验证码 ---
+        // 图形验证码校验失败则拒绝
         if (!captchaService.validate(request.getCaptchaKey(), request.getCaptchaCode())) {
+            // 终止登录流程
             throw new RuntimeException("验证码错误或已过期");
         }
 
         // --- 2. 根据邮箱查找用户 ---
-        // LambdaQueryWrapper：类型安全的查询条件构建
+        // 按邮箱查询用户
         User user = userMapper.selectOne(
+                // 构建类型安全的查询条件
                 new LambdaQueryWrapper<User>()
-                        .eq(User::getEmail, request.getEmail()) // WHERE email = ?
+                        // 条件：email = 输入邮箱
+                        .eq(User::getEmail, request.getEmail())
         );
 
         // --- 3. 校验用户是否存在 ---
+        // 查不到用户
         if (user == null) {
-            throw new RuntimeException("邮箱或密码错误"); // 不明确提示"用户不存在"，防止枚举攻击
+            // 不明确提示"用户不存在"，防止枚举攻击
+            throw new RuntimeException("邮箱或密码错误");
         }
 
         // --- 4. 校验密码 ---
-        // matches(明文, BCrypt密文)：BCrypt 比对，不会反解出原文
+        // BCrypt 比对密码，不匹配则拒绝
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            // 与"用户不存在"文案一致，防止暴露账号是否存在
             throw new RuntimeException("邮箱或密码错误");
         }
 
         // --- 5. 构建登录响应 ---
+        // 生成 JWT 并返回登录响应
         return buildLoginResponse(user);
     }
 
@@ -169,26 +194,39 @@ public class LoginService {
      */
     public LoginResponse loginByWid(String code) {
         // --- 1. 用 code 向微信服务器换取 OpenID ---
+        // 通过微信 jscode2session 接口换取 OpenID
         String openId = wxService.getOpenId(code);
 
         // --- 2. 根据 OpenID 查找系统用户 ---
+        // 按 OpenID 查询用户
         User user = userMapper.selectOne(
-                new LambdaQueryWrapper<User>().eq(User::getWid, openId) // WHERE wid = ?
+                // 条件：wid = OpenID
+                new LambdaQueryWrapper<User>().eq(User::getWid, openId)
         );
 
         // --- 3. 新用户自动注册 ---
+        // 未注册过则自动创建
         if (user == null) {
+            // 创建新用户实体
             user = new User();
-            user.setUsername("wx_" + openId.substring(0, 8));      // 用户名：wx_ + OpenID前8位
-            user.setPassword(passwordEncoder.encode(openId));       // 密码 = BCrypt(OpenID)
-            user.setName("钱罐罐记账用户_" + openId.substring(0, 4)); // 昵称
-            user.setRole("USER");                                   // 普通用户角色
-            user.setStatus(1);                                      // 启用状态
-            user.setWid(openId);                                    // 绑定微信 OpenID
-            userMapper.insert(user);                                // 插入数据库
+            // 用户名：wx_ + OpenID前8位
+            user.setUsername("wx_" + openId.substring(0, 8));
+            // 密码 = BCrypt(OpenID)
+            user.setPassword(passwordEncoder.encode(openId));
+            // 昵称
+            user.setName("钱罐罐记账用户_" + openId.substring(0, 4));
+            // 普通用户角色
+            user.setRole("USER");
+            // 启用状态
+            user.setStatus(1);
+            // 绑定微信 OpenID
+            user.setWid(openId);
+            // 插入数据库
+            userMapper.insert(user);
         }
 
         // --- 4. 签发 Token ---
+        // 生成 JWT 并返回登录响应
         return buildLoginResponse(user);
     }
 
@@ -202,35 +240,51 @@ public class LoginService {
      */
     public LoginResponse register(RegisterRequest request) {
         // --- 1. 校验图形验证码 ---
+        // 图形验证码校验失败则拒绝
         if (!captchaService.validate(request.getCaptchaKey(), request.getCaptchaCode())) {
+            // 终止注册流程
             throw new RuntimeException("验证码错误或已过期");
         }
 
         // --- 2. 校验邮箱验证码 ---
+        // 邮箱验证码校验失败则拒绝
         if (!emailService.validate(request.getEmail(), request.getEmailCode())) {
+            // 终止注册流程
             throw new RuntimeException("邮箱验证码错误或已过期");
         }
 
         // --- 3. 检查邮箱是否已被注册 ---
+        // 按邮箱查询是否已注册
         User existEmailUser = userMapper.selectOne(
+                // 条件：email = 输入邮箱
                 new LambdaQueryWrapper<User>().eq(User::getEmail, request.getEmail())
         );
+        // 已存在相同邮箱
         if (existEmailUser != null) {
+            // 拒绝重复注册
             throw new RuntimeException("该邮箱已被注册");
         }
 
         // --- 4. 创建新用户 ---
+        // 创建用户实体
         User user = new User();
-        user.setUsername(request.getEmail());                            // 用户名 = 邮箱
-        user.setPassword(passwordEncoder.encode(request.getPassword())); // BCrypt 加密密码
-        // 昵称取邮箱 @ 前面的部分，如 "test@qq.com" → "test"
+        // 用户名 = 邮箱
+        user.setUsername(request.getEmail());
+        // BCrypt 加密密码
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        // 昵称取邮箱 @ 前缀，如 "test@qq.com" → "test"
         user.setName(request.getEmail().substring(0, request.getEmail().indexOf('@')));
+        // 邮箱即登录名
         user.setEmail(request.getEmail());
-        user.setRole("USER");  // 默认普通用户
-        user.setStatus(1);     // 默认启用
+        // 默认普通用户
+        user.setRole("USER");
+        // 默认启用
+        user.setStatus(1);
+        // 写入数据库
         userMapper.insert(user);
 
         // --- 5. 注册成功自动登录 ---
+        // 注册后直接签发 Token 完成登录
         return buildLoginResponse(user);
     }
 
@@ -245,22 +299,28 @@ public class LoginService {
      */
     public LoginResponse refreshToken(String token) {
         // --- 1. 获取 JWT 签名密钥 ---
+        // 由配置的密钥字节构建 HMAC-SHA256 签名 Key
         Key key = Keys.hmacShaKeyFor(securityProperties.getJwt().getSecret().getBytes());
 
         // --- 2. 宽松解析 Token（允许已过期） ---
-        // parserTokenLenient：过期不抛异常，仍可提取 Claims 中的内容
+        // 宽松解析：过期也不抛异常，仍能提取 Claims
         Claims claims = Jwt.parserTokenLenient(token, key);
 
         // --- 3. 从 Claims 中提取用户ID ---
+        // 取出旧 Token 中的用户ID
         Long id = claims.get(JwtClaims.ID, Long.class);
 
         // --- 4. 校验用户是否存在且未被禁用 ---
+        // 按ID查询用户
         User user = userMapper.selectById(id);
+        // 用户不存在或已被禁用
         if (user == null || user.getStatus() != 1) {
+            // 拒绝签发新 Token
             throw new RuntimeException("用户不存在或已禁用");
         }
 
         // --- 5. 重新签发 Token ---
+        // 基于有效用户重新签发新 Token
         return buildLoginResponse(user);
     }
 }

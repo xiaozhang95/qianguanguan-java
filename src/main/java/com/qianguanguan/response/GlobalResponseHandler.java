@@ -41,6 +41,7 @@ public class GlobalResponseHandler implements ResponseBodyAdvice<Object> {
      * 其余异常统一包装为 Response.error
      */
     @ExceptionHandler(value = Exception.class)
+    @SuppressWarnings("unused") // 由 Spring MVC 反射调用（@ExceptionHandler），IDE 静态分析无法识别，非未使用
     public Response<Object> exceptionHandler(Exception e) throws Exception {
         log.error(e.getMessage(), e);
 

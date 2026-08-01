@@ -1,44 +1,25 @@
 package com.qianguanguan.service;
 
-// --- Jackson JSON 解析 ---
-// JsonNode：Jackson 的树模型，可以层级访问 JSON 的任意节点
-// ObjectMapper：Jackson 的核心类，用于 JSON → Java 对象的序列化/反序列化
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-// --- 安全配置属性（微信 appId、appSecret） ---
 import com.qianguanguan.configuration.SecurityProperties;
-// --- Lombok ---
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-// --- Spring Data Redis ---
-// StringRedisTemplate：操作 Redis String 类型，用于缓存 access_token
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.redis.core.StringRedisTemplate;
-// --- Spring HTTP 请求/响应 ---
-// HttpEntity：封装 HTTP 请求的 Header 和 Body
-// HttpHeaders：构建 HTTP 请求头
-// HttpMethod：HTTP 方法枚举（GET、POST 等）
-// ResponseEntity：封装 HTTP 响应（状态码、响应头、响应体）
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-// --- Spring REST 客户端错误处理 ---
-// ClientHttpResponse：HTTP 客户端响应接口
-// ResponseErrorHandler：自定义 HTTP 错误处理器
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.web.client.ResponseErrorHandler;
-// --- Spring 服务层注解 ---
 import org.springframework.stereotype.Service;
-// --- Spring REST 模板 ---
-// RestTemplate：Spring 提供的同步 HTTP 客户端，用于调用微信 API
 import org.springframework.web.client.RestTemplate;
 
-// --- Java 基础库 ---
-import java.net.URI;               // URI（handleError 方法签名需要）
-import java.util.Base64;           // Base64 编解码（图片字节 → base64 字符串）
-import java.util.Map;              // 映射表（构建微信 API 请求体）
-import java.util.concurrent.TimeUnit; // 时间单位（Redis 过期时间）
+import java.net.URI;
+import java.util.Base64;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 微信 API 服务
@@ -59,9 +40,12 @@ import java.util.concurrent.TimeUnit; // 时间单位（Redis 过期时间）
  * <p>
  * 参考文档：<a href="https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/">微信小程序服务端 API</a>
  */
-@Slf4j                            // Lombok：自动生成 log 日志对象
-@Service                          // 标记为 Spring Bean
-@RequiredArgsConstructor           // 自动生成构造器注入
+// Lombok：自动生成 log 日志对象
+@Slf4j
+// 标记为 Spring Bean
+@Service
+// 自动生成构造器注入
+@RequiredArgsConstructor
 public class WxService {
 
     /** Redis key：存储微信 access_token */
@@ -103,31 +87,35 @@ public class WxService {
      */
     public String getOpenId(String code) {
         // --- 第1步：构建微信 jscode2session 接口 URL ---
-        // 使用字符串拼接构建 GET 请求 URL（参数直接拼接在 URL 上）
+        // 字符串拼接 GET 请求 URL，参数直接放查询串
         String url = "https://api.weixin.qq.com/sns/jscode2session"
-                + "?appid=" + securityProperties.getWx().getAppId()       // 小程序 AppID
-                + "&secret=" + securityProperties.getWx().getAppSecret()   // 小程序 AppSecret（密钥）
-                + "&js_code=" + code                                      // wx.login() 返回的临时 code
-                + "&grant_type=authorization_code";                       // 固定值：授权类型
+                // 小程序 AppID
+                + "?appid=" + securityProperties.getWx().getAppId()
+                // 小程序 AppSecret（密钥）
+                + "&secret=" + securityProperties.getWx().getAppSecret()
+                // wx.login() 返回的临时 code
+                + "&js_code=" + code
+                // 固定值：授权类型
+                + "&grant_type=authorization_code";
 
         // --- 第2步：发送 GET 请求 ---
-        // getForObject(url, String.class)：以 GET 方式请求 URL，将响应体转为字符串
-        // 微信返回 JSON 格式，如：{"openid":"oABC...","session_key":"xyz..."}
+        // getForObject 将响应体转为字符串，微信返回 JSON
         String response = restTemplate.getForObject(url, String.class);
 
         // --- 第3步：解析 JSON 响应，提取 openid ---
         try {
             // readTree：将 JSON 字符串解析为 Jackson 树模型
             JsonNode json = objectMapper.readTree(response);
-            // 获取 "openid" 字段的值，如果不存在则 asText() 返回空字符串 ""
+            // 取 openid 字段，不存在时 asText() 返回空串
             String openId = json.get("openid").asText();
+            // openid 为空说明微信返回错误（如 errcode=40029）
             if (openId == null || openId.isEmpty()) {
-                // openid 为空说明微信返回了错误（如 errcode=40029 "invalid code"）
                 throw new RuntimeException("获取微信openid失败: " + response);
             }
+            // 返回微信用户的 OpenID
             return openId;
         } catch (Exception e) {
-            // 记录日志并抛出业务异常
+            // 记录日志
             log.error("微信登录解析失败: {}", response, e);
             throw new RuntimeException("微信登录失败");
         }
@@ -151,38 +139,50 @@ public class WxService {
      */
     public String getAccessToken() {
         // --- 第1步：检查 Redis 缓存 ---
+        // 从 Redis 读取缓存的 token
         String cached = stringRedisTemplate.opsForValue().get(ACCESS_TOKEN_KEY);
         if (cached != null && !cached.isEmpty()) {
-            // 缓存命中，直接返回（避免调用微信 API，节省调用次数）
+            // 缓存命中直接返回，避免调用微信 API 节省调用次数
             return cached;
         }
 
         // --- 第2步：缓存未命中，调用微信接口获取 ---
+        // 拼接获取 token 的接口 URL
         String url = "https://api.weixin.qq.com/cgi-bin/token"
-                + "?grant_type=client_credential"                        // 固定值：客户端凭证
-                + "&appid=" + securityProperties.getWx().getAppId()       // 小程序 AppID
-                + "&secret=" + securityProperties.getWx().getAppSecret(); // 小程序 AppSecret
+                // 固定值：客户端凭证
+                + "?grant_type=client_credential"
+                // 小程序 AppID
+                + "&appid=" + securityProperties.getWx().getAppId()
+                // 小程序 AppSecret
+                + "&secret=" + securityProperties.getWx().getAppSecret();
 
-        // 发送 GET 请求，微信返回：{"access_token":"...","expires_in":7200}
+        // 发送 GET 请求，返回 {"access_token":"...","expires_in":7200}
         String response = restTemplate.getForObject(url, String.class);
         try {
-            // 解析 JSON，提取 access_token
+            // 解析 JSON 响应
             JsonNode json = objectMapper.readTree(response);
+            // 提取 access_token 字段
             String accessToken = json.get("access_token").asText();
+            // 获取失败
             if (accessToken == null || accessToken.isEmpty()) {
-                // 获取失败，记录错误日志
+                // 记录错误日志
                 log.error("获取access_token失败: {}", response);
                 throw new RuntimeException("获取微信access_token失败");
             }
 
             // --- 第3步：存入 Redis 缓存 ---
-            // 缓存 7000 秒（比微信实际有效期少 200 秒，确保使用时不过期）
+            // 缓存 7000 秒（比微信有效期少 200 秒，确保使用中不过期）
             stringRedisTemplate.opsForValue().set(
-                    ACCESS_TOKEN_KEY,      // Key: wx_access_token
-                    accessToken,           // Value: access_token 字符串
-                    ACCESS_TOKEN_EXPIRE,   // 过期时长
-                    TimeUnit.SECONDS       // 时间单位：秒
+                    // Key: wx_access_token
+                    ACCESS_TOKEN_KEY,
+                    // Value: access_token 字符串
+                    accessToken,
+                    // 过期时长
+                    ACCESS_TOKEN_EXPIRE,
+                    // 时间单位：秒
+                    TimeUnit.SECONDS
             );
+            // 返回新获取的 token
             return accessToken;
         } catch (Exception e) {
             log.error("解析access_token失败: {}", response, e);
@@ -211,7 +211,7 @@ public class WxService {
      * @return base64 编码的图片字符串（含 data:image/jpeg;base64, 前缀），可直接用于 &lt;img&gt; 标签
      */
     public String getWxaCode(String scene, String page) {
-        // 委托给 doGetWxaCode，第三个参数 true 表示允许 token 失效时自动重试一次
+        // 委托执行，true 表示 token 失效时自动重试一次
         return doGetWxaCode(scene, page, true);
     }
 
@@ -225,74 +225,89 @@ public class WxService {
      */
     private String doGetWxaCode(String scene, String page, boolean retryOnAuthError) {
         // --- 第1步：获取 access_token ---
-        // getAccessToken() 优先从 Redis 取，缓存未命中才调用微信接口
+        // getAccessToken() 优先从 Redis 取，未命中才调微信接口
         String accessToken = getAccessToken();
-        // 拼接请求 URL，access_token 作为查询参数
+        // 拼接请求 URL，token 作为查询参数
         String url = "https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=" + accessToken;
 
         // --- 第2步：构建 HTTP 请求头 ---
+        // 创建请求头对象
         HttpHeaders headers = new HttpHeaders();
-        // 设置 Content-Type 为 application/json（微信接口要求 JSON 请求体）
+        // 微信接口要求 JSON 请求体
         headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
 
         // --- 第3步：构建请求体（JSON 格式） ---
-        // Map.of：Java 9+ 不可变 Map 工厂方法，创建只读 Map
+        // Map.of：Java 9+ 不可变 Map，创建只读请求体
         Map<String, Object> body = Map.of(
-                "scene", scene,       // 场景值（如 "login:aB3xK9mQ2pL7rT5w"）
-                "page", page,         // 小程序页面路径
-                "check_path", false,  // 不检查 page 路径是否存在（避免开发阶段报错）
-                "width", 280          // 小程序码宽度（像素），范围 280-1280
+                // 场景值（如 "login:aB3xK9mQ2pL7rT5w"）
+                "scene", scene,
+                // 小程序页面路径
+                "page", page,
+                // 不检查 page 路径是否存在（避免开发阶段报错）
+                "check_path", false,
+                // 小程序码宽度（像素），范围 280-1280
+                "width", 280
         );
 
         // --- 第4步：创建自定义 RestTemplate（忽略 HTTP 错误状态码） ---
-        // 微信接口在失败时返回 HTTP 200 + JSON 错误信息，但某些情况下也可能返回非 200
-        // 自定义 RestTemplate 的 errorHandler 不抛出异常，由我们手动判断
+        // 微信失败时可能返回非 200，由 errorHandler 忽略后手动判断
         RestTemplate noErrorRestTemplate = getRestTemplate();
 
         try {
             // --- 第5步：序列化请求体为 JSON 字符串 ---
+            // 请求体对象序列化为 JSON
             String requestBody = objectMapper.writeValueAsString(body);
+            // 打印请求日志便于排查
             log.info("获取小程序码请求: url={}, body={}", url, requestBody);
 
             // --- 第6步：构建 HttpEntity（Header + Body） ---
+            // 组装请求头与请求体
             HttpEntity<String> requestEntity = new HttpEntity<>(requestBody, headers);
 
             // --- 第7步：发送 POST 请求 ---
-            // exchange：通用 HTTP 请求方法，可以指定 Method、RequestEntity、响应类型
-            // byte[].class：期望返回二进制图片数据
+            // exchange：通用 HTTP 请求方法
             ResponseEntity<byte[]> responseEntity = noErrorRestTemplate.exchange(
-                    url,                // 请求 URL
-                    HttpMethod.POST,    // POST 方式
-                    requestEntity,      // 请求实体（header + body）
-                    byte[].class        // 响应体类型：字节数组
+                    // 请求 URL
+                    url,
+                    // POST 方式
+                    HttpMethod.POST,
+                    // 请求实体（header + body）
+                    requestEntity,
+                    // 期望响应二进制图片数据
+                    byte[].class
             );
-            byte[] imageBytes = responseEntity.getBody(); // 获取响应体（图片二进制或错误 JSON）
+            // 获取响应体（图片二进制或错误 JSON）
+            byte[] imageBytes = responseEntity.getBody();
 
             // --- 第8步：判断响应是否为图片 ---
-            // 成功时微信返回图片二进制（通常 > 1000 字节），失败时返回 JSON 错误信息（通常 < 500 字节）
+            // 非2xx/空/过短均视为失败（错误 JSON 通常<500字节）
             if (!responseEntity.getStatusCode().is2xxSuccessful() || imageBytes == null || imageBytes.length < 1000) {
-                // 不是图片 → 将字节数组转为字符串（微信返回的 JSON 错误信息）
+                // 将字节数组转为 JSON 错误文本
                 String errorJson = imageBytes != null ? new String(imageBytes) : "{}";
+                // 记录失败日志
                 log.error("获取小程序码失败: status={}, body={}", responseEntity.getStatusCode(), errorJson);
 
                 // --- 解析错误码，决定后续处理 ---
                 try {
+                    // 解析错误 JSON
                     JsonNode errorNode = objectMapper.readTree(errorJson);
-                    JsonNode errcodeNode = errorNode.get("errcode"); // 微信错误码字段名
+                    // 微信错误码字段名
+                    JsonNode errcodeNode = errorNode.get("errcode");
+                    // 存在错误码才处理
                     if (errcodeNode != null) {
+                        // 转为整数便于比较
                         int errcode = errcodeNode.asInt();
 
                         // access_token 失效（40001=无效, 40003=过期），且允许重试
                         if ((errcode == 40001 || errcode == 40003) && retryOnAuthError) {
                             log.info("access_token失效，清除缓存后重试");
-                            // 删除 Redis 中的缓存 token，下次 getAccessToken() 会重新获取
+                            // 删除缓存的token，下次重新获取
                             stringRedisTemplate.delete(ACCESS_TOKEN_KEY);
-                            // 递归调用，第三个参数 false 防止无限重试
+                            // 递归重试，false 防止无限递归
                             return doGetWxaCode(scene, page, false);
                         }
 
-                        // 接口调用频率超限 或 小程序未发布
-                        // 45009：API 调用超出限额；85075：小程序未发布
+                        // 接口调用频率超限 或 小程序未发布（45009=超限；85075=未发布）
                         if (errcode == 45009 || errcode == 85075) {
                             throw new RuntimeException(
                                     "微信扫码登录暂不可用：小程序尚未发布上线，请先在微信公众平台提交审核并发布小程序");
@@ -304,39 +319,38 @@ public class WxService {
                 } catch (Exception ignored) {
                     // JSON 解析失败等非关键异常，忽略，继续抛出通用错误
                 }
-                // 不是已知错误，抛出通用异常
+                // 未知错误抛出通用异常
                 throw new RuntimeException("获取小程序码失败，错误: " + errorJson);
             }
 
             // --- 第9步：成功获取图片 → Base64 编码返回 ---
-            // 编码为 Base64 并拼接 Data URI 前缀，前端可直接用于 <img src="data:image/jpeg;base64,...">
+            // Base64 编码加 Data URI 前缀，前端可直接用于 <img>
             return "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(imageBytes);
 
         } catch (RuntimeException e) {
             // 重新抛出业务异常，不需要包装
             throw e;
         } catch (Exception e) {
-            // 其他未知异常（网络错误、序列化错误等），记录日志后包装为 RuntimeException
+            // 记录未知异常（网络、序列化等）
             log.error("获取小程序码异常", e);
             throw new RuntimeException("获取小程序码失败");
         }
     }
 
     private static @NonNull RestTemplate getRestTemplate() {
+        // 创建独立实例，避免污染全局 bean
         RestTemplate noErrorRestTemplate = new RestTemplate();
-        // setErrorHandler：设置自定义错误处理器
+        // 设置自定义错误处理器
         noErrorRestTemplate.setErrorHandler(new ResponseErrorHandler() {
             @Override
             public boolean hasError(@NonNull ClientHttpResponse response) {
-                // 永远返回 false：告诉 RestTemplate "没有错误"
-                // 这样即使 HTTP 状态码不是 2xx 也不会抛异常
+                // 永远返回 false：非 2xx 状态码也不抛异常，由调用方手动判断
                 return false;
             }
 
             @Override
             public void handleError(@NonNull URI url, @NonNull HttpMethod method, @NonNull ClientHttpResponse response) {
-                // 空实现：不处理（因为 hasError 返回 false，此方法不会被调用）
-                // 但接口要求实现，所以留空
+                // 空实现：hasError 恒为 false，此方法不会被调用，但接口要求实现
             }
         });
         return noErrorRestTemplate;

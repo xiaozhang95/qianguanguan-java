@@ -1,16 +1,11 @@
 package com.qianguanguan.controller;
 
-// --- Swagger 注解 ---
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-// --- Spring 注解：从配置文件注入值 ---
 import org.springframework.beans.factory.annotation.Value;
-// --- Spring MVC 注解 ---
 import org.springframework.web.bind.annotation.*;
-// --- Spring 文件上传接口 ---
 import org.springframework.web.multipart.MultipartFile;
 
-// --- Java IO / NIO ---
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,9 +20,12 @@ import java.util.UUID;
  * 支持单文件上传，文件以 UUID 重命名保存到本地 upload 目录，
  * 返回可访问的 URL 路径。
  */
-@Tag(name = "文件上传", description = "文件上传相关接口") // Swagger 分组
-@RestController                 // REST 控制器
-@RequestMapping("/api/business") // 统一基础路径
+// Swagger 分组
+@Tag(name = "文件上传", description = "文件上传相关接口")
+// REST 控制器
+@RestController
+// 统一基础路径
+@RequestMapping("/api/business")
 public class FileController {
 
     /**
@@ -40,32 +38,45 @@ public class FileController {
     private String uploadDir;
 
     @Operation(summary = "上传文件", description = "上传文件并返回访问路径")
-    @PostMapping("/upload")  // POST /api/business/upload
+    // POST /api/business/upload
+    @PostMapping("/upload")
     public Map<String, String> upload(
-            @RequestParam("file") MultipartFile file // 表单参数名为 "file"
+            // 表单参数名为 "file"
+            @RequestParam("file") MultipartFile file
     ) throws IOException {
         // --- 1. 确保上传目录存在 ---
-        Path dir = Paths.get(uploadDir);           // 将路径字符串转为 Path 对象
-        if (!Files.exists(dir)) {                  // 检查目录是否存在
-            Files.createDirectories(dir);          // 不存在则递归创建
+        // 将配置的上传路径字符串转为 Path 对象
+        Path dir = Paths.get(uploadDir);
+        // 目录不存在时才需要创建
+        if (!Files.exists(dir)) {
+            // 递归创建目录及其父目录
+            Files.createDirectories(dir);
         }
 
         // --- 2. 提取文件扩展名 ---
+        // 原始文件名非空才继续解析
         String ext = file.getOriginalFilename() != null
-                && file.getOriginalFilename().contains(".")  // 原始文件名存在且含点号
+                // 文件名含点号才能截取到扩展名
+                && file.getOriginalFilename().contains(".")
+                // 含扩展名时取原文件名（下方再截取扩展名）
                 ? file.getOriginalFilename()
-                        .substring(file.getOriginalFilename().lastIndexOf(".")) // 截取最后一个 . 之后的部分
-                : ".png"; // 无法识别扩展名时默认使用 .png
+                        // 从最后一个点号截取到末尾，得到扩展名
+                        .substring(file.getOriginalFilename().lastIndexOf("."))
+                // 无法识别扩展名时默认使用 .png
+                : ".png";
 
         // --- 3. UUID 重命名，防止文件名冲突 ---
-        String filename = UUID.randomUUID() + ext;   // 生成唯一文件名，如 "a1b2c3d4.jpg"
-        File dest = dir.resolve(filename).toFile();  // 拼接完整目标路径
+        // UUID 拼接扩展名，生成全局唯一的文件名
+        String filename = UUID.randomUUID() + ext;
+        // 在上传目录下解析出完整的目标文件
+        File dest = dir.resolve(filename).toFile();
 
         // --- 4. 保存文件到磁盘 ---
-        file.transferTo(dest);                       // Spring MultipartFile 提供的方法
+        // 调用 Spring 方法将上传文件写入磁盘目标位置
+        file.transferTo(dest);
 
         // --- 5. 返回可访问的 URL ---
-        // 配合 CorsConfig 中的静态资源映射，/upload/xxx 可直接访问
+        // 配合 CorsConfig 的静态资源映射，/upload/xxx 可直接访问
         return Map.of("url", "/upload/" + filename);
     }
 }

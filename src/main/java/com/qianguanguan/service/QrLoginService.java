@@ -1,39 +1,22 @@
 package com.qianguanguan.service;
 
-// --- MyBatis-Plus 查询条件构造器 ---
-// LambdaQueryWrapper：使用 lambda 表达式构建类型安全的 WHERE 条件
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-// --- JWT & 微信配置属性 ---
-// SecurityProperties：从 application.yaml 读取 jwt.secret、wx.appId 等配置
 import com.qianguanguan.configuration.SecurityProperties;
-// --- 用户实体 ---
 import com.qianguanguan.entity.User;
-// --- 用户表 Mapper ---
 import com.qianguanguan.mapper.UserMapper;
-// --- 登录响应模型（含 Token + UserInfo） ---
 import com.qianguanguan.model.LoginResponse;
-// --- JWT 工具类：签发和解析 Token ---
 import com.qianguanguan.util.Jwt;
-// --- JJWT 密钥工具 ---
-// Keys.hmacShaKeyFor：将字节数组转换为 HMAC-SHA256 签名密钥
 import io.jsonwebtoken.security.Keys;
-// --- Lombok ---
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-// --- Spring Data Redis ---
-// StringRedisTemplate：操作 Redis String 类型键值对
 import org.springframework.data.redis.core.StringRedisTemplate;
-// --- Spring Security 密码编码器 ---
-// PasswordEncoder：BCrypt 加密和比对（扫码登录新用户自动注册时加密密码）
 import org.springframework.security.crypto.password.PasswordEncoder;
-// --- Spring 服务层注解 ---
 import org.springframework.stereotype.Service;
 
-// --- Java 基础库 ---
-import java.security.Key;           // JWT 签名密钥接口
-import java.security.SecureRandom;  // 加密安全的随机数生成器
-import java.util.*;                 // Date, HashMap, Map 等
-import java.util.concurrent.TimeUnit; // Redis 过期时间单位
+import java.security.Key;
+import java.security.SecureRandom;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 微信扫码登录核心服务
@@ -56,9 +39,12 @@ import java.util.concurrent.TimeUnit; // Redis 过期时间单位
  *   过期：  300 秒（5 分钟）
  * </pre>
  */
-@Slf4j                            // Lombok：自动生成 log 日志对象
-@Service                          // 标记为 Spring Bean
-@RequiredArgsConstructor           // 自动生成构造器注入
+// Lombok：自动生成 log 日志对象
+@Slf4j
+// 标记为 Spring Bean
+@Service
+// 自动生成构造器注入
+@RequiredArgsConstructor
 public class QrLoginService {
 
     /** Redis key 前缀，完整 key = qr_login:{场景ID} */
@@ -101,34 +87,40 @@ public class QrLoginService {
      */
     public Map<String, String> generateScene() {
         // --- 第1步：生成 16 位随机场景 ID ---
-        // 如 "aB3xK9mQ2pL7rT5w"
+        // 生成随机场景 ID，如 "aB3xK9mQ2pL7rT5w"
         String sceneId = generateShortId(16);
 
         // --- 第2步：创建 Redis Hash，存储场景初始数据 ---
-        // Java 中先用 HashMap 构建数据，再批量写入 Redis
+        // 先用 HashMap 组装场景初始数据
         Map<String, String> sceneData = new HashMap<>();
-        sceneData.put("status", STATUS_PENDING); // 初始状态：等待扫码
-        sceneData.put("token", "");              // Token 字段留空，确认后填充
+        // 初始状态：等待扫码
+        sceneData.put("status", STATUS_PENDING);
+        // Token 字段留空，确认后填充
+        sceneData.put("token", "");
 
         // --- 第3步：写入 Redis ---
-        // putAll：批量写入 Hash 的多个 field-value
-        // Key = qr_login:{场景ID}
+        // 批量写入 Hash 的各字段
         stringRedisTemplate.opsForHash().putAll(REDIS_PREFIX + sceneId, sceneData);
-        // expire：设置整个 Hash 的过期时间（300 秒后自动删除）
+        // 设置整个 Hash 300 秒后自动过期
         stringRedisTemplate.expire(REDIS_PREFIX + sceneId, SCENE_EXPIRE_SECONDS, TimeUnit.SECONDS);
 
         // --- 第4步：调用微信接口生成小程序码 ---
-        // scene 参数格式："login:场景ID"，小程序端通过 onLoad(options) 获取 options.scene
+        // 生成携带场景 ID 的小程序码 base64 图片
         String qrImage = wxService.getWxaCode("login:" + sceneId, WXA_PAGE);
-        // 返回 null 说明微信接口调用失败（如 access_token 过期且重试也失败）
+        // 微信接口调用失败（如 access_token 过期且重试失败）
         if (qrImage == null) {
+            // 抛出业务异常终止流程
             throw new RuntimeException("生成小程序码失败");
         }
 
         // --- 第5步：构建返回结果 ---
+        // 构建返回结果 Map
         Map<String, String> result = new HashMap<>();
-        result.put("sceneId", sceneId);   // 前端保存 sceneId，用于轮询 checkStatus
-        result.put("qrImage", qrImage);   // base64 图片，可直接用于 <img src="...">
+        // 前端保存 sceneId，用于轮询 checkStatus
+        result.put("sceneId", sceneId);
+        // base64 图片，可直接用于 <img src="...">
+        result.put("qrImage", qrImage);
+        // 返回场景 ID 和二维码图片
         return result;
     }
 
@@ -149,26 +141,30 @@ public class QrLoginService {
      */
     public Map<String, Object> checkStatus(String sceneId) {
         // --- 从 Redis Hash 中读取状态和 Token ---
-        // opsForHash().get(key, field)：获取 Hash 中指定 field 的值
-        // 返回值类型是 Object，需要强制转换为 String
+        // 读取状态字段（Object 强转 String）
         String status = (String) stringRedisTemplate.opsForHash().get(REDIS_PREFIX + sceneId, "status");
+        // 读取 Token 字段
         String token = (String) stringRedisTemplate.opsForHash().get(REDIS_PREFIX + sceneId, "token");
 
         // --- 构建响应 ---
+        // 构建查询结果
         Map<String, Object> result = new HashMap<>();
+        // status 为 null 说明 key 不存在（已过期或已被删除）
         if (status == null) {
-            // status 为 null 说明 Redis key 不存在（已过期或已被删除）
+            // 标记为已过期
             result.put("status", "expired");
         } else {
             // 返回真实状态（pending / confirmed）
             result.put("status", status);
+            // 已确认登录
             if (STATUS_CONFIRMED.equals(status)) {
-                // 已确认：附带 Token 给前端
+                // 附带 Token 供 Web 端使用
                 result.put("token", token);
-                // 立即删除 Redis 数据，防止 Token 被重复获取
+                // 立即删除场景数据，防止 Token 被重复获取
                 stringRedisTemplate.delete(REDIS_PREFIX + sceneId);
             }
         }
+        // 返回状态查询结果
         return result;
     }
 
@@ -191,88 +187,122 @@ public class QrLoginService {
      */
     public LoginResponse confirmLogin(String sceneId, String code) {
         // --- 第1步：校验场景码状态 ---
+        // 读取场景状态
         String status = (String) stringRedisTemplate.opsForHash().get(REDIS_PREFIX + sceneId, "status");
+        // 场景不存在：超过 300 秒过期，或已被 checkStatus 删除
         if (status == null) {
-            // Redis key 不存在（超过 300 秒自动过期，或已被 checkStatus 删除）
+            // 拒绝确认
             throw new RuntimeException("二维码已过期");
         }
+        // 已被确认过（防止重复确认）
         if (STATUS_CONFIRMED.equals(status)) {
-            // 已被确认过（防止重复确认）
+            // 拒绝重复使用
             throw new RuntimeException("二维码已被使用");
         }
 
         // --- 第2步：通过微信 code 换取 OpenID ---
-        // code 是 wx.login() 返回的临时凭证，有效期约 5 分钟
+        // 用临时登录凭证 code 换取 OpenID
         String openId = wxService.getOpenId(code);
 
         // --- 第3步：根据 OpenID 查找系统用户 ---
-        // LambdaQueryWrapper：构建 WHERE wid = ? 条件
+        // 按 OpenID 查询用户
         User user = userMapper.selectOne(
+                // 构建类型安全的查询条件
                 new LambdaQueryWrapper<User>()
-                        .eq(User::getWid, openId)  // wid 字段存储微信 OpenID
+                        // 条件：wid = OpenID
+                        .eq(User::getWid, openId)
         );
 
         // --- 第4步：用户不存在则自动注册 ---
+        // 未注册过则自动创建
         if (user == null) {
+            // 创建用户实体
             user = new User();
             // 用户名：wx_ + OpenID 前 8 位，保证唯一
             user.setUsername("wx_" + openId.substring(0, 8));
-            // 密码：BCrypt 加密 OpenID（实际上用户不会用密码登录）
+            // 密码：BCrypt(OpenID)，实际用户不靠密码登录
             user.setPassword(passwordEncoder.encode(openId));
-            // 昵称：取 OpenID 前 4 位
+            // 昵称取 OpenID 前 4 位
             user.setName("钱罐罐用户_" + openId.substring(0, 4));
-            user.setRole("USER");   // 默认普通用户角色
-            user.setStatus(1);      // 启用状态
-            user.setWid(openId);    // 绑定微信 OpenID
-            userMapper.insert(user); // insert 后 MyBatis-Plus 会自动回填 user.id
+            // 默认普通用户角色
+            user.setRole("USER");
+            // 启用状态
+            user.setStatus(1);
+            // 绑定微信 OpenID
+            user.setWid(openId);
+            // insert 后 MyBatis-Plus 会自动回填 user.id
+            userMapper.insert(user);
         }
 
         // --- 第5步：生成 JWT Token ---
-        Date now = new Date(); // 当前时间作为签发时间（iat）
-        // 从配置的密钥字符串创建 HMAC-SHA256 签名 Key
+        // 当前时间作为签发时间（iat）
+        Date now = new Date();
+        // 由配置的密钥字节构建 HMAC-SHA256 签名 Key
         Key key = Keys.hmacShaKeyFor(securityProperties.getJwt().getSecret().getBytes());
-        // 过期时间 = 当前时间 + 配置的 JWT 有效期
+        // 过期时刻 = 签发时间 + 配置的有效期
         Date expirationDate = new Date(now.getTime() + securityProperties.getJwt().getExpiration());
 
-        // Jwt.generateToken：将用户ID和角色写入 JWT Payload，生成签名字符串
+        // 将用户ID和角色写入 JWT Payload 并签名
+        // 签发 JWT Token
         String token = Jwt.generateToken(
-                user.getId(),   // 用户ID（存入 JWT Claims）
-                user.getRole(), // 用户角色（存入 JWT Claims）
-                key,            // 签名密钥
-                now,            // 签发时间
-                expirationDate  // 过期时间
+                // 用户ID（存入 JWT Claims）
+                user.getId(),
+                // 用户角色（存入 JWT Claims）
+                user.getRole(),
+                // 签名密钥
+                key,
+                // 签发时间
+                now,
+                // 过期时间
+                expirationDate
         );
 
         // --- 第6步：签发时间戳缓存到 Redis（用于 JWT 过滤器二次校验） ---
-        // Key: user_{用户ID}  Value: 签发时间戳（毫秒）
-        // 过期时间 = JWT 有效期 + 24 小时（比 Token 多活一天，支持刷新）
+        // 缓存签发时间戳
         stringRedisTemplate.opsForValue().set(
-                "user_" + user.getId(),                 // Redis Key
-                String.valueOf(now.getTime()),          // 签发时间戳
-                securityProperties.getJwt().getExpiration(), // 有效期
-                TimeUnit.MILLISECONDS                   // 时间单位：毫秒
+                // Redis Key：user_{用户ID}
+                "user_" + user.getId(),
+                // 签发时间戳（毫秒）
+                String.valueOf(now.getTime()),
+                // TTL = JWT 过期时长（毫秒）
+                securityProperties.getJwt().getExpiration(),
+                // 时间单位：毫秒
+                TimeUnit.MILLISECONDS
         );
 
         // --- 第7步：更新场景状态为 confirmed，写入 Token ---
-        // 小程序端确认后，Web 端的轮询会立即检测到状态变化
+        // 状态改为已确认，Web 端轮询即可感知
         stringRedisTemplate.opsForHash().put(REDIS_PREFIX + sceneId, "status", STATUS_CONFIRMED);
+        // 写入 Token 供 Web 端取出
         stringRedisTemplate.opsForHash().put(REDIS_PREFIX + sceneId, "token", token);
 
         // --- 第8步：构建登录响应 ---
-        // 使用 Builder 模式创建 LoginResponse，将用户信息封装为嵌套的 UserInfo
         return LoginResponse.builder()
-                .token(token) // JWT Token（含 "Bearer " 前缀）
+                // JWT Token（含 "Bearer " 前缀）
+                .token(token)
+                // 构建嵌套的用户信息
                 .userInfo(LoginResponse.UserInfo.builder()
+                        // 用户ID
                         .id(user.getId())
+                        // 用户名
                         .username(user.getUsername())
+                        // 昵称
                         .name(user.getName())
+                        // 角色
                         .role(user.getRole())
+                        // 手机号
                         .phone(user.getPhone())
+                        // 邮箱
                         .email(user.getEmail())
+                        // 头像
                         .avatar(user.getAvatar())
+                        // 微信 OpenID
                         .wid(user.getWid())
+                        // 创建时间
                         .createtime(user.getCreatetime())
+                        // 完成 UserInfo
                         .build())
+                // 完成 LoginResponse
                 .build();
     }
 
@@ -286,15 +316,18 @@ public class QrLoginService {
      * @return 随机字符串
      */
     private String generateShortId(int length) {
-        // 字符池：A-Z、a-z、0-9（共 62 个字符）
+        // 字符池：大写字母 + 小写字母 + 数字共 62 个
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        SecureRandom random = new SecureRandom(); // 加密安全的随机数生成器
-        StringBuilder sb = new StringBuilder(length); // 预分配容量，避免扩容
-        // 循环 length 次，每次从字符池随机取一个字符拼接
+        // 加密安全的随机数生成器
+        SecureRandom random = new SecureRandom();
+        // 预分配容量，避免扩容
+        StringBuilder sb = new StringBuilder(length);
+        // 循环 length 次，每次取一个随机字符
         for (int i = 0; i < length; i++) {
-            // random.nextInt(chars.length())：生成 0 ~ 61 的随机索引
+            // 从字符池随机取字符并拼接
             sb.append(chars.charAt(random.nextInt(chars.length())));
         }
-        return sb.toString(); // 返回随机字符串
+        // 返回随机字符串
+        return sb.toString();
     }
 }

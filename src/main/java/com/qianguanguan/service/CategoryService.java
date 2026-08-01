@@ -1,16 +1,10 @@
 package com.qianguanguan.service;
 
-// --- MyBatis-Plus 查询条件构造器 ---
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-// --- 分类实体 ---
 import com.qianguanguan.entity.Category;
-// --- 分类表 Mapper ---
 import com.qianguanguan.mapper.CategoryMapper;
-// --- 分类请求模型 ---
 import com.qianguanguan.model.CategorySaveRequest;
-// --- Lombok ---
 import lombok.RequiredArgsConstructor;
-// --- Spring ---
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -26,11 +20,14 @@ import java.util.List;
  * </ul>
  * 修改系统默认分类时会自动创建用户私有副本，保留系统模板不变。
  */
+// Spring Service 组件注解
 @Service
+// 自动生成构造器注入
 @RequiredArgsConstructor
 public class CategoryService {
 
     // --- 分类表数据访问 ---
+    // 分类表 Mapper
     private final CategoryMapper categoryMapper;
 
     /**
@@ -44,19 +41,24 @@ public class CategoryService {
      * @return 分类列表
      */
     public List<Category> list(String type, Long userId) {
-        // 构建查询条件
+        // 类型安全的查询条件构造器
         LambdaQueryWrapper<Category> wrapper = new LambdaQueryWrapper<Category>()
                 // AND (user_id IS NULL OR user_id = userId)
-                .and(w -> w.isNull(Category::getUserId)       // 系统默认分类
-                        .or()                                  // 或
-                        .eq(Category::getUserId, userId))      // 用户自定义分类
-                .orderByAsc(Category::getSort);                // 按排序升序
+                // 系统默认分类（user_id 为空）
+                .and(w -> w.isNull(Category::getUserId)
+                        // 或
+                        .or()
+                        // 当前用户的自定义分类
+                        .eq(Category::getUserId, userId))
+                // 按 sort 字段升序排列
+                .orderByAsc(Category::getSort);
 
-        // 动态添加类型筛选
+        // 类型参数非空时才按类型筛选
         if (type != null && !type.isEmpty()) {
-            wrapper.eq(Category::getType, type); // AND type = ?
+            // AND type = ?
+            wrapper.eq(Category::getType, type);
         }
-        // 执行查询
+        // 执行查询并返回分类列表
         return categoryMapper.selectList(wrapper);
     }
 
@@ -68,15 +70,23 @@ public class CategoryService {
      * @return 创建成功的分类实体
      */
     public Category save(Long userId, CategorySaveRequest request) {
-        // 创建分类实体并填充数据
+        // 新建分类实体，逐字段填充
         Category category = new Category();
-        category.setName(request.getName());                     // 分类名称
-        category.setIcon(request.getIcon());                     // 图标（emoji）
-        category.setType(request.getType());                     // INCOME 或 EXPENSE
-        category.setUserId(userId);                              // 标记为用户自定义分类
-        category.setSort(request.getSort() != null ? request.getSort() : 0); // 排序序号
-        category.setCreatetime(new Date());                      // 创建时间
-        categoryMapper.insert(category);                         // 写入数据库
+        // 分类名称
+        category.setName(request.getName());
+        // 图标（emoji）
+        category.setIcon(request.getIcon());
+        // 类型：INCOME 或 EXPENSE
+        category.setType(request.getType());
+        // 标记为用户自定义分类
+        category.setUserId(userId);
+        // 排序序号，null 时取 0
+        category.setSort(request.getSort() != null ? request.getSort() : 0);
+        // 创建时间：当前时间
+        category.setCreatetime(new Date());
+        // 写入数据库
+        categoryMapper.insert(category);
+        // 返回带自增 ID 的实体
         return category;
     }
 
@@ -95,32 +105,50 @@ public class CategoryService {
     public Category update(Long userId, Long id, CategorySaveRequest request) {
         // --- 1. 查询原分类 ---
         Category category = categoryMapper.selectById(id);
+        // 分类不存在时直接报错
         if (category == null) {
             throw new RuntimeException("分类不存在");
         }
 
         // --- 2. 系统默认分类 → 创建用户私有副本 ---
-        if (category.getUserId() == null) {  // userId 为 null 说明是系统默认分类
-            Category copy = new Category();  // 创建新记录（而非修改原记录）
+        // userId 为 null 说明是系统默认分类
+        if (category.getUserId() == null) {
+            // 新建副本记录（不修改系统模板）
+            Category copy = new Category();
+            // 分类名称
             copy.setName(request.getName());
+            // 图标
             copy.setIcon(request.getIcon());
+            // 类型
             copy.setType(request.getType());
-            copy.setUserId(userId);           // 标记为当前用户的私有分类
+            // 归属当前用户
+            copy.setUserId(userId);
+            // 排序
             copy.setSort(request.getSort());
+            // 创建时间
             copy.setCreatetime(new Date());
-            categoryMapper.insert(copy);      // 插入新记录
-            return copy;                      // 返回副本
+            // 插入新记录
+            categoryMapper.insert(copy);
+            // 返回副本
+            return copy;
         }
 
         // --- 3. 用户自定义分类 → 校验归属权后直接更新 ---
+        // 非本人分类拒绝修改
         if (!category.getUserId().equals(userId)) {
             throw new RuntimeException("无权修改此分类");
         }
+        // 更新分类名称
         category.setName(request.getName());
+        // 更新图标
         category.setIcon(request.getIcon());
+        // 更新类型
         category.setType(request.getType());
+        // 更新排序
         category.setSort(request.getSort());
-        categoryMapper.updateById(category);  // 直接更新原记录
+        // 按主键更新记录
+        categoryMapper.updateById(category);
+        // 返回更新后的分类
         return category;
     }
 
@@ -140,21 +168,23 @@ public class CategoryService {
     public void delete(Long userId, Long id) {
         // --- 1. 查询分类 ---
         Category category = categoryMapper.selectById(id);
+        // 分类不存在时直接报错
         if (category == null) {
             throw new RuntimeException("分类不存在");
         }
 
         // --- 2. 权限校验 ---
-        // 如果是别人的自定义分类（userId 不为 null 且不等于当前用户）
+        // 他人自定义分类无权删除
         if (category.getUserId() != null && !category.getUserId().equals(userId)) {
             throw new RuntimeException("无权删除此分类");
         }
-        // 系统默认分类不可删除
+        // 系统默认分类受保护，不可删除
         if (category.getUserId() == null) {
             throw new RuntimeException("系统默认分类不可删除");
         }
 
         // --- 3. 物理删除 ---
+        // 从数据库删除该分类记录
         categoryMapper.deleteById(id);
     }
 }

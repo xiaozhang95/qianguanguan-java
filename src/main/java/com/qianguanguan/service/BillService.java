@@ -1,46 +1,42 @@
 package com.qianguanguan.service;
 
-// --- MyBatis-Plus 查询条件构造器 ---
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-// --- MyBatis-Plus 分页接口/实现 ---
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-// --- 常量：账单类型 INCOME / EXPENSE ---
 import com.qianguanguan.constant.BillType;
-// --- 实体类 ---
 import com.qianguanguan.entity.Bill;
 import com.qianguanguan.entity.Category;
-// --- Mapper 层 ---
 import com.qianguanguan.mapper.BillMapper;
 import com.qianguanguan.mapper.CategoryMapper;
-// --- 请求/响应模型 ---
 import com.qianguanguan.model.BillSaveRequest;
 import com.qianguanguan.model.BillStatsVO;
 import com.qianguanguan.model.BillVO;
-// --- Lombok ---
 import lombok.RequiredArgsConstructor;
-// --- Spring ---
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
-// --- Java 基础库 ---
-import java.math.BigDecimal;   // 精确金额计算
-import java.util.Date;          // 日期
-import java.util.List;          // 列表
-import java.util.Map;           // 映射表
-import java.util.stream.Collectors; // Stream 收集器
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 账单业务服务
  * <p>
  * 处理账单的增删改查和统计分析，所有操作均绑定当前用户以保证数据隔离。
  */
-@Service             // Spring Service 组件注解
-@RequiredArgsConstructor // 自动生成构造器注入
+// Spring Service 组件注解
+@Service
+// 自动生成构造器注入
+@RequiredArgsConstructor
 public class BillService {
 
     // --- 数据访问层（MyBatis-Plus Mapper） ---
-    private final BillMapper billMapper;         // 账单表 Mapper
-    private final CategoryMapper categoryMapper; // 分类表 Mapper
+    // 账单表 Mapper
+    private final BillMapper billMapper;
+    // 分类表 Mapper
+    private final CategoryMapper categoryMapper;
 
     /**
      * 分页查询账单列表
@@ -61,73 +57,113 @@ public class BillService {
                               String startDate, String endDate,
                               Integer pageNum, Integer pageSize) {
         // --- 1. 构建查询条件 ---
-        // LambdaQueryWrapper：类型安全的查询构造器，使用 lambda 表达式引用字段名
+        // 类型安全的查询构造器：lambda 引用字段名
         LambdaQueryWrapper<Bill> wrapper = new LambdaQueryWrapper<Bill>()
-                .eq(Bill::getUserId, userId); // 必须条件：只查当前用户的账单
+                // 必须条件：只查当前用户账单，保证数据隔离
+                .eq(Bill::getUserId, userId);
 
-        // 动态添加筛选条件：仅当参数非空时才添加
+        // 动态添加筛选条件：仅当参数非空时才生效
+        // 类型参数非空时才按类型筛选
         if (type != null && !type.isEmpty()) {
-            wrapper.eq(Bill::getType, type);           // 等于：类型
+            // 按类型筛选（INCOME/EXPENSE）
+            wrapper.eq(Bill::getType, type);
         }
+        // 分类ID 非空时才按分类筛选
         if (categoryId != null) {
-            wrapper.eq(Bill::getCategoryId, categoryId); // 等于：分类ID
+            // 按分类ID 筛选
+            wrapper.eq(Bill::getCategoryId, categoryId);
         }
+        // 开始日期非空时才加下界
         if (startDate != null && !startDate.isEmpty()) {
-            wrapper.ge(Bill::getBillDate, startDate);  // 大于等于：开始日期
+            // 日期下界：账单日期 >= 开始日期
+            wrapper.ge(Bill::getBillDate, startDate);
         }
+        // 结束日期非空时才加上界
         if (endDate != null && !endDate.isEmpty()) {
-            wrapper.le(Bill::getBillDate, endDate);    // 小于等于：结束日期
+            // 日期上界：账单日期 <= 结束日期
+            wrapper.le(Bill::getBillDate, endDate);
         }
-        // 按账单日期降序，再按创建时间降序（最新的在前）
+        // 排序：账单日期优先、创建时间其次，均降序（最新账单在前）
         wrapper.orderByDesc(Bill::getBillDate).orderByDesc(Bill::getCreatetime);
 
         // --- 2. 分页查询 ---
-        // 创建分页对象，页码/每页条数为 null 时使用默认值
+        // 页码/每页条数为 null 时回退到默认值（第 1 页 / 每页 10 条）
+        // 构建分页参数对象
         Page<Bill> page = new Page<>(
-                pageNum != null ? pageNum : 1,     // 默认第1页
-                pageSize != null ? pageSize : 10   // 默认每页10条
+                // 页码：null 时取第 1 页
+                pageNum != null ? pageNum : 1,
+                // 每页条数：null 时取 10 条
+                pageSize != null ? pageSize : 10
         );
-        IPage<Bill> billPage = billMapper.selectPage(page, wrapper); // 执行分页查询
+        // 执行分页查询，返回含总记录数的分页结果
+        IPage<Bill> billPage = billMapper.selectPage(page, wrapper);
 
         // --- 3. 批量查询分类信息（避免 N+1 问题） ---
-        // 从分页结果中提取所有去重的分类ID
+        // 收集本页账单的分类ID 并去重，再一次性批量查询
+        // 对当前页账单记录做流式处理
         List<Long> categoryIds = billPage.getRecords().stream()
-                .map(Bill::getCategoryId)        // 提取每条账单的 categoryId
-                .distinct()                      // 去重
-                .collect(Collectors.toList());   // 收集为 List
-        // 批量查询分类表，构建 Map<分类ID, 分类对象> 用于快速查找
+                // 提取每条账单的 categoryId
+                .map(Bill::getCategoryId)
+                // 去重，避免重复查询
+                .distinct()
+                // 收集为 List
+                .collect(Collectors.toList());
+        // 用分类ID 集合批量查分类，构建 分类ID->分类对象 映射，供后续快速查找
+        // 分类ID 为空时走空分支
         Map<Long, Category> categoryMap = categoryIds.isEmpty()
-                ? Map.of()                       // 空列表时返回空 Map（Java 9+ 不可变 Map）
-                : categoryMapper.selectBatchIds(categoryIds)  // MyBatis-Plus 批量查询
-                        .stream()
-                        .collect(Collectors.toMap(Category::getId, c -> c)); // 转为 Map
+                // 空列表返回空 Map（Java 9+ 不可变 Map）
+                ? Map.of()
+                // MyBatis-Plus 按主键批量查询
+                : categoryMapper.selectBatchIds(categoryIds)
+                // 对查询结果流式处理
+                  .stream()
+                // 转为 分类ID->分类对象 Map
+                  .collect(Collectors.toMap(Category::getId, c -> c));
 
         // --- 4. 将 Bill 实体转换为 BillVO（视图对象） ---
+        // 遍历账单，逐条转为 VO
         List<BillVO> voList = billPage.getRecords().stream().map(bill -> {
-            // 从 Map 中获取该账单对应的分类信息
+            // 从 Map 中取该账单的分类（可能为 null）
             Category cat = categoryMap.get(bill.getCategoryId());
-            // 使用 Builder 模式构建 VO，将分类名称和图标一并返回
+            // 用 Builder 模式装配 VO
             return BillVO.builder()
+                    // 账单ID
                     .id(bill.getId())
+                    // 所属用户ID
                     .userId(bill.getUserId())
+                    // 分类ID
                     .categoryId(bill.getCategoryId())
-                    .categoryName(cat != null ? cat.getName() : "未知")   // 分类名
-                    .categoryIcon(cat != null ? cat.getIcon() : "❓")     // 分类图标
+                    // 分类名，缺失时兜底"未知"
+                    .categoryName(cat != null ? cat.getName() : "未知")
+                    // 分类图标，缺失时用 ❓ 占位
+                    .categoryIcon(cat != null ? cat.getIcon() : "❓")
+                    // 账单类型
                     .type(bill.getType())
+                    // 金额
                     .amount(bill.getAmount())
+                    // 账单日期
                     .billDate(bill.getBillDate())
+                    // 备注
                     .remark(bill.getRemark())
+                    // 创建时间
                     .createtime(bill.getCreatetime())
                     .build();
-        }).collect(Collectors.toList()); // 收集转换结果
+            // 收集转换后的 VO 列表
+        }).collect(Collectors.toList());
 
         // --- 5. 构建并返回分页 VO ---
+        // 构建分页 VO
         Page<BillVO> voPage = new Page<>(
-                billPage.getCurrent(), // 当前页码
-                billPage.getSize(),    // 每页条数
-                billPage.getTotal()    // 总记录数
+                // 当前页码
+                billPage.getCurrent(),
+                // 每页条数
+                billPage.getSize(),
+                // 总记录数
+                billPage.getTotal()
         );
-        voPage.setRecords(voList);     // 设置转换后的 VO 列表
+        // 写入转换后的 VO 列表
+        voPage.setRecords(voList);
+        // 返回分页结果
         return voPage;
     }
 
@@ -142,29 +178,50 @@ public class BillService {
      */
     public BillVO save(Long userId, BillSaveRequest request) {
         // --- 1. 构建 Bill 实体对象 ---
+        // 新建账单实体，逐字段填充
         Bill bill = new Bill();
-        bill.setUserId(userId);                    // 绑定当前用户
-        bill.setCategoryId(request.getCategoryId()); // 分类ID
-        bill.setType(request.getType());           // INCOME 或 EXPENSE
-        bill.setAmount(request.getAmount());       // 金额（BigDecimal 精确）
-        bill.setBillDate(request.getBillDate());   // 账单日期
-        bill.setRemark(request.getRemark());       // 备注
-        bill.setCreatetime(new Date());            // 创建时间 = 当前时间
-        billMapper.insert(bill);                   // MyBatis-Plus 插入数据库
+        // 绑定当前用户，保证数据归属
+        bill.setUserId(userId);
+        // 分类ID
+        bill.setCategoryId(request.getCategoryId());
+        // 账单类型：INCOME / EXPENSE
+        bill.setType(request.getType());
+        // 金额（BigDecimal 精确计算）
+        bill.setAmount(request.getAmount());
+        // 账单日期
+        bill.setBillDate(request.getBillDate());
+        // 备注
+        bill.setRemark(request.getRemark());
+        // 创建时间 = 当前时间
+        bill.setCreatetime(new Date());
+        // MyBatis-Plus 插入数据库
+        billMapper.insert(bill);
 
         // --- 2. 查询分类信息用于返回 ---
+        // 按分类ID 查分类实体
         Category category = categoryMapper.selectById(bill.getCategoryId());
         // --- 3. 构建 VO 返回 ---
+        // 构建返回 VO
         return BillVO.builder()
+                // 账单ID
                 .id(bill.getId())
+                // 所属用户ID
                 .userId(bill.getUserId())
+                // 分类ID
                 .categoryId(bill.getCategoryId())
+                // 分类名，缺失时兜底"未知"
                 .categoryName(category != null ? category.getName() : "未知")
+                // 分类图标，缺失时用 ❓ 占位
                 .categoryIcon(category != null ? category.getIcon() : "❓")
+                // 账单类型
                 .type(bill.getType())
+                // 金额
                 .amount(bill.getAmount())
+                // 账单日期
                 .billDate(bill.getBillDate())
+                // 备注
                 .remark(bill.getRemark())
+                // 创建时间
                 .createtime(bill.getCreatetime())
                 .build();
     }
@@ -182,34 +239,57 @@ public class BillService {
      */
     public BillVO update(Long userId, Long id, BillSaveRequest request) {
         // --- 1. 查询原账单 ---
+        // 按主键查原账单
         Bill bill = billMapper.selectById(id);
+        // 账单不存在时直接报错
         if (bill == null) {
-            throw new RuntimeException("账单不存在");  // 账单ID无效
+            // 账单ID无效
+            throw new RuntimeException("账单不存在");
         }
         // --- 2. 校验归属权 ---
+        // 非本人账单，拒绝操作
         if (!bill.getUserId().equals(userId)) {
-            throw new RuntimeException("无权操作此账单"); // 不是当前用户的账单
+            // 不是当前用户的账单
+            throw new RuntimeException("无权操作此账单");
         }
         // --- 3. 更新字段 ---
+        // 更新分类ID
         bill.setCategoryId(request.getCategoryId());
+        // 更新类型
         bill.setType(request.getType());
+        // 更新金额
         bill.setAmount(request.getAmount());
+        // 更新账单日期
         bill.setBillDate(request.getBillDate());
+        // 更新备注
         bill.setRemark(request.getRemark());
-        billMapper.updateById(bill); // MyBatis-Plus 按主键更新
+        // 按主键更新整行
+        billMapper.updateById(bill);
 
         // --- 4. 查询分类并返回 VO ---
+        // 查分类用于组装 VO
         Category category = categoryMapper.selectById(bill.getCategoryId());
+        // 构建返回 VO
         return BillVO.builder()
+                // 账单ID
                 .id(bill.getId())
+                // 所属用户ID
                 .userId(bill.getUserId())
+                // 分类ID
                 .categoryId(bill.getCategoryId())
+                // 分类名，缺失时兜底"未知"
                 .categoryName(category != null ? category.getName() : "未知")
+                // 分类图标，缺失时用 ❓ 占位
                 .categoryIcon(category != null ? category.getIcon() : "❓")
+                // 账单类型
                 .type(bill.getType())
+                // 金额
                 .amount(bill.getAmount())
+                // 账单日期
                 .billDate(bill.getBillDate())
+                // 备注
                 .remark(bill.getRemark())
+                // 创建时间
                 .createtime(bill.getCreatetime())
                 .build();
     }
@@ -223,15 +303,19 @@ public class BillService {
      */
     public void delete(Long userId, Long id) {
         // --- 1. 查询原账单 ---
+        // 按主键查原账单
         Bill bill = billMapper.selectById(id);
+        // 账单不存在时直接报错
         if (bill == null) {
             throw new RuntimeException("账单不存在");
         }
         // --- 2. 校验归属权 ---
+        // 非本人账单，拒绝操作
         if (!bill.getUserId().equals(userId)) {
             throw new RuntimeException("无权操作此账单");
         }
         // --- 3. 物理删除 ---
+        // 从数据库删除该账单记录
         billMapper.deleteById(id);
     }
 
@@ -252,52 +336,83 @@ public class BillService {
     public BillStatsVO stats(Long userId, String year, String month,
                              String day, String type, Long categoryId) {
         // --- 1. 构建日期前缀（用于 SQL LIKE 查询） ---
-        String prefix; // 如 "2026-07" 或 "2026-07-31"
-        String s = month.length() == 1 ? "0" + month : month;
-        if (day != null && !day.isEmpty()) {
-            // 按日统计：补零确保两位数，如 "7" → "07"
-            prefix = year + "-"
-                    + s + "-"
-                    + (day.length() == 1 ? "0" + day : day);
-        } else {
-            // 按月统计
-            prefix = year + "-" + s;
-        }
+        // 统计区间的日期前缀，如 "2026-07" 或 "2026-07-31"
+        String prefix = getString(year, month, day);
 
         // --- 2. 构建查询条件 ---
+        // 类型安全的查询条件构造器
         LambdaQueryWrapper<Bill> wrapper = new LambdaQueryWrapper<Bill>()
-                .eq(Bill::getUserId, userId)           // 必须：当前用户
-                .likeRight(Bill::getBillDate, prefix); // LIKE 'prefix%'：前缀匹配
+                // 必须：只查当前用户
+                .eq(Bill::getUserId, userId)
+                // LIKE 'prefix%'：前缀匹配日期区间
+                .likeRight(Bill::getBillDate, prefix);
 
-        // 动态添加可选筛选条件
+        // 类型参数非空时才筛类型
         if (type != null && !type.isEmpty()) {
+            // 按类型筛选
             wrapper.eq(Bill::getType, type);
         }
+        // 分类参数非空时才筛分类
         if (categoryId != null) {
+            // 按分类ID 筛选
             wrapper.eq(Bill::getCategoryId, categoryId);
         }
 
         // --- 3. 查询符合条件的账单列表 ---
+        // 查询全部符合条件的账单（不分页）
         List<Bill> bills = billMapper.selectList(wrapper);
 
         // --- 4. Stream 流式计算统计 ---
-        // 计算总收入：过滤 INCOME 类型的账单，累加金额
+        // 计算总收入：过滤 INCOME 类型的账单后累加金额
+        // 对账单列表流式处理
         BigDecimal totalIncome = bills.stream()
-                .filter(b -> BillType.INCOME.equals(b.getType())) // 只保留收入
-                .map(Bill::getAmount)                              // 提取金额
-                .reduce(BigDecimal.ZERO, BigDecimal::add);         // 累加，初始值 0
-
-        // 计算总支出：过滤 EXPENSE 类型的账单，累加金额
-        BigDecimal totalExpense = bills.stream()
-                .filter(b -> BillType.EXPENSE.equals(b.getType())) // 只保留支出
+                // 只保留收入类型
+                .filter(b -> BillType.INCOME.equals(b.getType()))
+                // 提取金额
                 .map(Bill::getAmount)
+                // 累加求和，初始值为 0
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // 计算总支出：过滤 EXPENSE 类型的账单后累加金额
+        // 对账单列表流式处理
+        BigDecimal totalExpense = bills.stream()
+                // 只保留支出类型
+                .filter(b -> BillType.EXPENSE.equals(b.getType()))
+                // 提取金额
+                .map(Bill::getAmount)
+                // 累加求和，初始值为 0
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // --- 5. 构建统计 VO 返回 ---
+        // 构建统计结果 VO
         return BillStatsVO.builder()
-                .totalIncome(totalIncome)                        // 总收入
-                .totalExpense(totalExpense)                      // 总支出
-                .balance(totalIncome.subtract(totalExpense))     // 结余 = 收入 - 支出
+                // 总收入
+                .totalIncome(totalIncome)
+                // 总支出
+                .totalExpense(totalExpense)
+                // 结余 = 收入 - 支出
+                .balance(totalIncome.subtract(totalExpense))
                 .build();
+    }
+
+    private static @NonNull String getString(String year, String month, String day) {
+        String prefix;
+        // 月份补零为两位数，如 "7" -> "07"
+        String s = month.length() == 1 ? "0" + month : month;
+        // 传入了日，则按日统计
+        if (day != null && !day.isEmpty()) {
+            // 按日统计：日期补零确保两位数，如 "7" -> "07"
+            // 拼接：年-
+            prefix = year + "-"
+                    // 月-
+                    + s + "-"
+                    // 日（不足两位补零）
+                    + (day.length() == 1 ? "0" + day : day);
+        } else {
+            // 按月统计
+            // 拼接为 年-月
+            prefix = year + "-" + s;
+        }
+        return prefix;
     }
 }

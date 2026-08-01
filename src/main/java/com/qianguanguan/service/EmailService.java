@@ -1,35 +1,15 @@
 package com.qianguanguan.service;
 
-// --- MyBatis-Plus 查询条件构造器 ---
-// 用于构建类型安全的 SQL WHERE 条件（如 eq、like）
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-// --- 用户实体类 ---
-// User 包含 email 字段，用于检查邮箱是否已被注册
 import com.qianguanguan.entity.User;
-// --- 用户表 Mapper ---
-// MyBatis-Plus 提供的数据访问接口，用于查询用户表
 import com.qianguanguan.mapper.UserMapper;
-// --- Lombok：自动生成构造器注入 ---
-// @RequiredArgsConstructor 为所有 final 字段生成构造器
 import lombok.RequiredArgsConstructor;
-// --- Spring Data Redis ---
-// StringRedisTemplate：操作 Redis 的 String 类型键值对
 import org.springframework.data.redis.core.StringRedisTemplate;
-// --- Spring Mail：发送纯文本邮件 ---
-// SimpleMailMessage：构建简单邮件（发件人、收件人、主题、正文）
 import org.springframework.mail.SimpleMailMessage;
-// --- Spring Mail：JavaMailSender 邮件发送器 ---
-// 底层封装了 JavaMail，自动读取 spring.mail.* 配置
 import org.springframework.mail.javamail.JavaMailSender;
-// --- Spring 服务层组件注解 ---
-// @Service 标记该类为业务逻辑 Bean，会被 Spring 自动扫描并管理
 import org.springframework.stereotype.Service;
 
-// --- Java 安全随机数（线程安全） ---
-// SecureRandom：使用加密强随机数算法，比 Random 更安全
 import java.security.SecureRandom;
-// --- 时间单位枚举 ---
-// TimeUnit：定义 Redis 过期时间的单位（MINUTES、SECONDS 等）
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -45,8 +25,10 @@ import java.util.concurrent.TimeUnit;
  *   <li>6 位随机数字，使用 SecureRandom 生成</li>
  * </ul>
  */
-@Service                         // 标记为 Spring Bean，由容器管理生命周期
-@RequiredArgsConstructor          // Lombok：自动生成包含所有 final 字段的构造器，实现构造器注入
+// 标记为 Spring Bean，由容器管理生命周期
+@Service
+// Lombok：自动生成包含所有 final 字段的构造器，实现构造器注入
+@RequiredArgsConstructor
 public class EmailService {
 
     /** 邮箱验证码 Redis key 前缀，完整 key = email_code:xxx@qq.com */
@@ -87,60 +69,70 @@ public class EmailService {
      */
     public void sendVerificationCode(String email) {
         // --- 第1步：频率限制检查 ---
-        // 构建频率限制的 Redis key，如 "email_rate:test@qq.com"
+        // 拼接频率限制 key，如 "email_rate:test@qq.com"
         String rateKey = EMAIL_RATE_LIMIT_PREFIX + email;
-        // hasKey：检查 Redis 中是否存在该 key
-        // 存在说明 60 秒内已经发过验证码，直接拒绝
+        // key 存在说明 60 秒内已发过，触发频率限制
         if (stringRedisTemplate.hasKey(rateKey)) {
+            // 直接拒绝重复发送
             throw new RuntimeException("验证码已发送，请60秒后再试");
         }
 
         // --- 第2步：检查邮箱是否已被注册 ---
-        // selectOne：查询符合条件的第一条记录
-        // LambdaQueryWrapper：使用 lambda 表达式构建 WHERE 条件，避免字段名硬编码
+        // 按邮箱查询用户记录
         User existUser = userMapper.selectOne(
+                // 构建类型安全的查询条件
                 new LambdaQueryWrapper<User>()
-                        .eq(User::getEmail, email)  // WHERE email = ?
+                        // 条件：WHERE email = ?
+                        .eq(User::getEmail, email)
         );
-        // 如果查询到用户，说明邮箱已存在，拒绝发送
+        // 查到用户说明邮箱已被注册
         if (existUser != null) {
+            // 拒绝发送验证码
             throw new RuntimeException("该邮箱已被注册");
         }
 
         // --- 第3步：生成 6 位数字验证码 ---
-        // SecureRandom.nextInt(1000000)：生成 0 ~ 999999 的随机整数
-        // String.format("%06d", ...)：格式化为 6 位，不足补 0（如 123 → "000123"）
+        // 生成 0~999999 随机数并格式化为 6 位（不足补 0）
         String code = String.format("%06d", random.nextInt(1000000));
 
         // --- 第4步：验证码存入 Redis ---
-        // Key: email_code:xxx@qq.com， Value: 6位数字验证码
-        // 过期时间 5 分钟，超时后 Redis 自动删除
+        // 写入 Redis，5 分钟有效
         stringRedisTemplate.opsForValue().set(
-                EMAIL_CODE_PREFIX + email,  // Redis Key
-                code,                        // 验证码值
-                CODE_EXPIRE_MINUTES,         // 过期时长
-                TimeUnit.MINUTES             // 时间单位：分钟
+                // Redis Key：email_code:{邮箱}
+                EMAIL_CODE_PREFIX + email,
+                // 验证码值
+                code,
+                // 过期时长
+                CODE_EXPIRE_MINUTES,
+                // 时间单位：分钟
+                TimeUnit.MINUTES
         );
 
         // --- 第5步：设置频率限制标记 ---
-        // Key: email_rate:xxx@qq.com， Value: "1"
-        // 过期时间 60 秒，期间再次发送会被第1步拦截
+        // 写入频率限制标记，60 秒有效
         stringRedisTemplate.opsForValue().set(
-                rateKey,                    // Redis Key
-                "1",                        // 任意值（只关心 key 是否存在）
-                RATE_LIMIT_SECONDS,         // 过期时长
-                TimeUnit.SECONDS            // 时间单位：秒
+                // Redis Key：email_rate:{邮箱}
+                rateKey,
+                // 任意值（只关心 key 是否存在）
+                "1",
+                // 过期时长
+                RATE_LIMIT_SECONDS,
+                // 时间单位：秒
+                TimeUnit.SECONDS
         );
 
         // --- 第6步：构建并发送邮件 ---
-        // SimpleMailMessage：Spring 提供的简单邮件消息类
+        // 创建简单邮件消息对象
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom("89981452@qq.com");               // 发件人 QQ 邮箱
-        message.setTo(email);                              // 收件人
-        message.setSubject("钱罐罐记账 - 邮箱验证码");       // 邮件主题
-        // 邮件正文，包含验证码和有效期提示
+        // 发件人 QQ 邮箱
+        message.setFrom("89981452@qq.com");
+        // 收件人
+        message.setTo(email);
+        // 邮件主题
+        message.setSubject("钱罐罐记账 - 邮箱验证码");
+        // 正文含验证码与有效期提示
         message.setText("您的验证码是：" + code + "，有效期为" + CODE_EXPIRE_MINUTES + "分钟，请勿泄露给他人。");
-        // 调用 JavaMailSender 发送邮件（底层通过 SMTP 协议与 QQ 邮箱服务器通信）
+        // 通过 SMTP 发送邮件
         mailSender.send(message);
     }
 
@@ -163,30 +155,31 @@ public class EmailService {
      */
     public boolean validate(String email, String code) {
         // --- 参数非空校验 ---
-        // 任一参数为 null 直接返回 false，不做无意义的 Redis 查询
+        // 任一参数为 null 直接判失败，不做无意义的 Redis 查询
         if (email == null || code == null) {
+            // 空参视为校验失败
             return false;
         }
 
         // --- 构建 Redis key ---
-        // 如 "email_code:test@qq.com"
+        // 拼接验证码 key，如 "email_code:test@qq.com"
         String key = EMAIL_CODE_PREFIX + email;
 
         // --- 从 Redis 获取存储的验证码 ---
+        // 读取 Redis 中存储的验证码
         String storedCode = stringRedisTemplate.opsForValue().get(key);
-        // 如果取不到（key 不存在或已过期），说明验证码无效
+        // 取不到说明 key 不存在或已过期，验证码无效
         if (storedCode == null) {
+            // 校验失败
             return false;
         }
 
         // --- 立即删除 Redis 中的验证码（关键安全步骤） ---
-        // 无论比对结果如何都删除，确保：
-        // 1. 正确验证码只能使用一次
-        // 2. 错误尝试也会消耗验证码，增加暴力破解成本
+        // 无论比对结果如何都删除，确保验证码一次性使用、防重放
         stringRedisTemplate.delete(key);
 
         // --- 比对验证码 ---
-        // 使用 equals 精确比对（验证码是数字，不区分大小写无意义）
+        // 精确比对后返回是否一致
         return storedCode.equals(code);
     }
 }

@@ -1,26 +1,17 @@
 package com.qianguanguan.service;
 
-// --- MyBatis-Plus 查询条件构造器 ---
-// LambdaQueryWrapper：构建类型安全的 WHERE 条件
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-// --- 用户实体 ---
 import com.qianguanguan.entity.User;
-// --- 用户表 Mapper ---
 import com.qianguanguan.mapper.UserMapper;
-// --- Lombok ---
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-// --- Spring Data Redis ---
-// StringRedisTemplate：操作 Redis String 类型键值对
 import org.springframework.data.redis.core.StringRedisTemplate;
-// --- Spring 服务层注解 ---
 import org.springframework.stereotype.Service;
 
-// --- Java 基础库 ---
-import java.security.SecureRandom;  // 加密安全的随机数生成器
-import java.util.HashMap;           // 哈希表
-import java.util.Map;               // 映射表接口
-import java.util.concurrent.TimeUnit; // Redis 过期时间单位
+import java.security.SecureRandom;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 微信绑定服务
@@ -49,9 +40,12 @@ import java.util.concurrent.TimeUnit; // Redis 过期时间单位
  *   过期：  300 秒（5 分钟）
  * </pre>
  */
-@Slf4j                            // Lombok：自动生成 log 日志对象
-@Service                          // 标记为 Spring Bean
-@RequiredArgsConstructor           // 自动生成构造器注入
+// Lombok：自动生成 log 日志对象
+@Slf4j
+// 标记为 Spring Bean
+@Service
+// 自动生成构造器注入
+@RequiredArgsConstructor
 public class WechatBindService {
 
     /** Redis key 前缀，完整 key = wechat_bind:{场景ID} */
@@ -89,26 +83,33 @@ public class WechatBindService {
         String sceneId = generateShortId(16);
 
         // --- 第2步：构建场景数据（存入 Redis Hash） ---
+        // 存放场景状态的 Map
         Map<String, String> sceneData = new HashMap<>();
-        sceneData.put("status", STATUS_PENDING);        // 初始状态：等待扫码
-        sceneData.put("userId", String.valueOf(userId)); // 记录发起绑定请求的用户ID
+        // 初始状态：等待扫码
+        sceneData.put("status", STATUS_PENDING);
+        // 记录发起绑定请求的用户ID
+        sceneData.put("userId", String.valueOf(userId));
 
         // --- 第3步：写入 Redis ---
         // putAll：批量写入 Hash 的多个 field-value
         stringRedisTemplate.opsForHash().putAll(REDIS_PREFIX + sceneId, sceneData);
-        // expire：设置整个 Hash 的过期时间（300 秒后自动删除）
+        // 设置300秒过期，超时自动删除
         stringRedisTemplate.expire(REDIS_PREFIX + sceneId, SCENE_EXPIRE_SECONDS, TimeUnit.SECONDS);
 
         // --- 第4步：调用微信接口生成小程序码 ---
-        // scene 参数格式："bind:场景ID"，小程序解析后调用 confirmBind
+        // scene 携带 "bind:" 前缀，小程序解析后调用 confirmBind
         String qrImage = wxService.getWxaCode("bind:" + sceneId, WXA_PAGE);
         if (qrImage == null) {
+            // 微信接口未返回图片
             throw new RuntimeException("生成小程序码失败");
         }
 
         // --- 第5步：返回场景ID和小程序码 ---
+        // 构建返回结果
         Map<String, String> result = new HashMap<>();
+        // 场景ID，供 Web 端轮询使用
         result.put("sceneId", sceneId);
+        // base64 小程序码图片
         result.put("qrImage", qrImage);
         return result;
     }
@@ -128,22 +129,24 @@ public class WechatBindService {
      */
     public Map<String, Object> checkStatus(String sceneId) {
         // --- 从 Redis Hash 获取状态 ---
-        // opsForHash().get(key, field)：获取 Hash 中指定 field 的值
-        // 返回值是 Object 类型，需强制转换为 String
+        // 读取 status 字段（Object 需强转 String）
         String status = (String) stringRedisTemplate.opsForHash().get(REDIS_PREFIX + sceneId, "status");
 
         // --- 构建响应 ---
         Map<String, Object> result = new HashMap<>();
         if (status == null) {
-            // Redis key 不存在（已过期或已被 checkStatus 删除）
+            // key 不存在：已过期或已被消费
             result.put("status", "expired");
         } else {
+            // 返回当前状态（pending/confirmed）
             result.put("status", status);
-            // 如果已确认，删除 Redis 数据（一次性消费）
+            // 已确认则删除场景数据，一次性消费
             if (STATUS_CONFIRMED.equals(status)) {
+                // 删除 Redis 场景
                 stringRedisTemplate.delete(REDIS_PREFIX + sceneId);
             }
         }
+        // 返回轮询结果给 Web 端
         return result;
     }
 
@@ -166,49 +169,57 @@ public class WechatBindService {
      */
     public Map<String, Object> confirmBind(String sceneId, String code) {
         // --- 第1步：从 Redis 获取场景数据 ---
-        // 同时获取 status 和 userId 两个 field
+        // 读取场景状态
         String status = (String) stringRedisTemplate.opsForHash().get(REDIS_PREFIX + sceneId, "status");
+        // 读取发起绑定的用户ID
         String userId = (String) stringRedisTemplate.opsForHash().get(REDIS_PREFIX + sceneId, "userId");
 
         // --- 第2步：校验场景码有效性 ---
+        // 任一字段为 null：key 不存在或数据不完整
         if (status == null || userId == null) {
-            // 任一 field 为 null 说明 Redis key 不存在或数据不完整
             throw new RuntimeException("二维码已过期");
         }
+        // 已被确认过，防止重复绑定
         if (STATUS_CONFIRMED.equals(status)) {
-            // 已被使用过，防止重复绑定
             throw new RuntimeException("二维码已被使用");
         }
 
         // --- 第3步：通过微信 code 换取 OpenID ---
-        // code 是 wx.login() 的返回值，用于向微信服务器换取用户唯一标识
+        // 用 wx.login() 的临时 code 换取用户唯一标识
         String openId = wxService.getOpenId(code);
 
         // --- 第4步：检查该微信号是否已绑定其他账号 ---
-        // 一个微信号只能绑定一个账号，防止重复绑定
+        // 一个微信号只能绑定一个账号
         User existingUser = userMapper.selectOne(
                 new LambdaQueryWrapper<User>()
-                        .eq(User::getWid, openId)  // WHERE wid = ?
+                        // WHERE wid = ?
+                        .eq(User::getWid, openId)
         );
+        // 该 OpenID 已关联其他用户
         if (existingUser != null) {
-            // 该 OpenID 已经关联了其他用户，不能重复绑定
             throw new RuntimeException("该微信号已绑定其他账号");
         }
 
         // --- 第5步：更新用户 wid 字段（核心绑定操作） ---
-        // MyBatis-Plus updateById：只更新非 null 字段（使用字段级策略）
+        // updateById 只更新非 null 字段（字段级策略）
         User user = new User();
-        user.setId(Long.parseLong(userId)); // 设置主键（userId 从 Redis 读取，是 String 类型，需转换）
-        user.setWid(openId);                // 设置微信 OpenID
-        userMapper.updateById(user);        // UPDATE user SET wid = ? WHERE id = ?
+        // 设置主键（Redis 中的 userId 是 String，需转换）
+        user.setId(Long.parseLong(userId));
+        // 设置微信 OpenID
+        user.setWid(openId);
+        // UPDATE user SET wid = ? WHERE id = ?
+        userMapper.updateById(user);
 
         // --- 第6步：更新 Redis 场景状态为 confirmed ---
-        // Web 端的轮询会检测到这个状态变化，提示用户绑定成功
+        // 状态置为已确认，供 Web 端轮询检测
         stringRedisTemplate.opsForHash().put(REDIS_PREFIX + sceneId, "status", STATUS_CONFIRMED);
 
         // --- 第7步：构建成功响应 ---
+        // 构建返回结果
         Map<String, Object> result = new HashMap<>();
+        // 状态：已确认
         result.put("status", STATUS_CONFIRMED);
+        // 提示信息
         result.put("msg", "绑定成功");
         return result;
     }
@@ -223,15 +234,18 @@ public class WechatBindService {
      * @return 随机字符串
      */
     private String generateShortId(int length) {
-        // 字符池：A-Z（26）+ a-z（26）+ 0-9（10）= 62 个字符
+        // 字符池：A-Z + a-z + 0-9 共 62 个字符
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        SecureRandom random = new SecureRandom(); // 加密安全的随机数生成器
-        StringBuilder sb = new StringBuilder(length); // 预分配容量，避免扩容开销
+        // 加密安全的随机数生成器
+        SecureRandom random = new SecureRandom();
+        // 预分配容量，避免扩容开销
+        StringBuilder sb = new StringBuilder(length);
         // 循环 length 次，每次从字符池随机取一个字符
         for (int i = 0; i < length; i++) {
-            // random.nextInt(chars.length())：生成 0 ~ 61 的均匀分布随机索引
+            // 追加一个随机字符（索引 0~61）
             sb.append(chars.charAt(random.nextInt(chars.length())));
         }
-        return sb.toString(); // 如 "aB3xK9mQ2pL7rT5w"
+        // 如 "aB3xK9mQ2pL7rT5w"
+        return sb.toString();
     }
 }

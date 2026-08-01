@@ -20,17 +20,12 @@ import java.util.Map;
  *   <li>Web 页面每 2 秒轮询 checkStatus，直到获取 token 完成登录</li>
  * </ol>
  */
-// Swagger 分组
 @Tag(name = "二维码登录模块", description = "微信扫码登录相关接口")
-// REST 控制器
 @RestController
-// 统一基础路径
 @RequestMapping("/api/business")
-// 自动注入 final 字段
 @RequiredArgsConstructor
 public class QrLoginController {
 
-    // --- 通过构造器注入二维码登录服务 ---
     private final QrLoginService qrLoginService;
 
     /**
@@ -40,7 +35,6 @@ public class QrLoginController {
      * 场景数据存入 Redis，有效期 5 分钟。
      */
     @Operation(summary = "生成登录场景码", description = "生成扫码登录的场景ID")
-    // GET /api/business/qr-login/scene
     @GetMapping("/qr-login/scene")
     public Map<String, String> generateScene() {
         // 委托Service生成场景码，返回 {sceneId, qrImage}
@@ -54,10 +48,8 @@ public class QrLoginController {
      * 状态值：pending（等待扫码）、confirmed（已确认，返回token）、expired（已过期）
      */
     @Operation(summary = "查询场景码状态", description = "轮询场景码是否被确认")
-    // GET /api/business/qr-login/status?sceneId=xxx
     @GetMapping("/qr-login/status")
     public Map<String, Object> checkStatus(
-            // URL 参数：场景码 ID
             @RequestParam String sceneId
     ) {
         // 委托Service查询场景状态，供Web端轮询
@@ -72,10 +64,8 @@ public class QrLoginController {
      * 签发 JWT Token 并写入 Redis 供 Web 端轮询获取。
      */
     @Operation(summary = "确认登录", description = "小程序确认登录")
-    // POST /api/business/qr-login/confirm
     @PostMapping("/qr-login/confirm")
     public LoginResponse confirmLogin(
-            // 请求体：{sceneId, code}
             @RequestBody Map<String, String> body
     ) {
         // 从请求体中取出场景码 ID

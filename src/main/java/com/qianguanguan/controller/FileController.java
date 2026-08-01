@@ -20,11 +20,8 @@ import java.util.UUID;
  * 支持单文件上传，文件以 UUID 重命名保存到本地 upload 目录，
  * 返回可访问的 URL 路径。
  */
-// Swagger 分组
 @Tag(name = "文件上传", description = "文件上传相关接口")
-// REST 控制器
 @RestController
-// 统一基础路径
 @RequestMapping("/api/business")
 public class FileController {
 
@@ -38,10 +35,8 @@ public class FileController {
     private String uploadDir;
 
     @Operation(summary = "上传文件", description = "上传文件并返回访问路径")
-    // POST /api/business/upload
     @PostMapping("/upload")
     public Map<String, String> upload(
-            // 表单参数名为 "file"
             @RequestParam("file") MultipartFile file
     ) throws IOException {
         // --- 1. 确保上传目录存在 ---

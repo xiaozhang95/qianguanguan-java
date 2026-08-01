@@ -30,20 +30,12 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class LoginService {
 
-    // --- 依赖注入 ---
-    // 用户表操作
     private final UserMapper userMapper;
-    // BCrypt 密码编码器
     private final PasswordEncoder passwordEncoder;
-    // 图形验证码服务
     private final CaptchaService captchaService;
-    // 邮箱验证码服务
     private final EmailService emailService;
-    // JWT 和微信配置
     private final SecurityProperties securityProperties;
-    // Redis 操作
     private final StringRedisTemplate stringRedisTemplate;
-    // 微信 API 服务
     private final WxService wxService;
 
     /**

@@ -39,11 +39,8 @@ import java.util.concurrent.TimeUnit;
  *   过期：  300 秒（5 分钟）
  * </pre>
  */
-// Lombok：自动生成 log 日志对象
 @Slf4j
-// 标记为 Spring Bean
 @Service
-// 自动生成构造器注入
 @RequiredArgsConstructor
 public class QrLoginService {
 
@@ -57,8 +54,6 @@ public class QrLoginService {
     private static final String STATUS_CONFIRMED = "confirmed";
     /** 小程序码跳转页面路径 */
     private static final String WXA_PAGE = "pages/bill/index";
-
-    // --- 依赖注入 ---
 
     /** Redis 操作：存储场景状态和 Token */
     private final StringRedisTemplate stringRedisTemplate;

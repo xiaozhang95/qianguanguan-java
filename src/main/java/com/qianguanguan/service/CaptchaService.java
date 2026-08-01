@@ -21,9 +21,7 @@ import java.util.concurrent.TimeUnit;
  * 绘制为带干扰线和噪点的 PNG 图片，base64 编码后返回。
  * 验证码存入 Redis，5 分钟有效，校验成功后立即删除。
  */
-// Spring Service 组件注解
 @Service
-// 自动生成构造器注入
 @RequiredArgsConstructor
 public class CaptchaService {
 
@@ -41,10 +39,7 @@ public class CaptchaService {
     /** 验证码长度：4 位 */
     private static final int CODE_LENGTH = 4;
 
-    // --- 依赖注入 ---
-    // Redis 操作
     private final StringRedisTemplate stringRedisTemplate;
-    // 安全随机数生成器
     private final SecureRandom random = new SecureRandom();
 
     /**

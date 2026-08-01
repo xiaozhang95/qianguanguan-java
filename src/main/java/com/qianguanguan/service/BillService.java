@@ -26,16 +26,11 @@ import java.util.stream.Collectors;
  * <p>
  * 处理账单的增删改查和统计分析，所有操作均绑定当前用户以保证数据隔离。
  */
-// Spring Service 组件注解
 @Service
-// 自动生成构造器注入
 @RequiredArgsConstructor
 public class BillService {
 
-    // --- 数据访问层（MyBatis-Plus Mapper） ---
-    // 账单表 Mapper
     private final BillMapper billMapper;
-    // 分类表 Mapper
     private final CategoryMapper categoryMapper;
 
     /**

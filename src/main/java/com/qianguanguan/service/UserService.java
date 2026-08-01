@@ -22,14 +22,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class UserService {
 
-    // --- 依赖注入 ---
-    // 用户表 Mapper
     private final UserMapper userMapper;
-    // Redis 操作（清除缓存）
     private final StringRedisTemplate stringRedisTemplate;
-    // BCrypt 密码编码器
     private final PasswordEncoder passwordEncoder;
-    // 邮箱验证码服务
     private final EmailService emailService;
 
     /**

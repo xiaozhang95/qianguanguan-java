@@ -20,14 +20,10 @@ import java.util.List;
  * </ul>
  * 修改系统默认分类时会自动创建用户私有副本，保留系统模板不变。
  */
-// Spring Service 组件注解
 @Service
-// 自动生成构造器注入
 @RequiredArgsConstructor
 public class CategoryService {
 
-    // --- 分类表数据访问 ---
-    // 分类表 Mapper
     private final CategoryMapper categoryMapper;
 
     /**

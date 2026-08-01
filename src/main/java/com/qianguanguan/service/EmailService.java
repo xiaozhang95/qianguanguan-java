@@ -25,9 +25,7 @@ import java.util.concurrent.TimeUnit;
  *   <li>6 位随机数字，使用 SecureRandom 生成</li>
  * </ul>
  */
-// 标记为 Spring Bean，由容器管理生命周期
 @Service
-// Lombok：自动生成包含所有 final 字段的构造器，实现构造器注入
 @RequiredArgsConstructor
 public class EmailService {
 
@@ -39,8 +37,6 @@ public class EmailService {
     private static final long CODE_EXPIRE_MINUTES = 5;
     /** 发送频率限制：60 秒（同一邮箱两次发送的最小间隔） */
     private static final long RATE_LIMIT_SECONDS = 60;
-
-    // --- 依赖注入（通过 @RequiredArgsConstructor 自动注入） ---
 
     /** JavaMailSender：Spring Boot 自动配置的邮件发送器，读取 yaml 中 spring.mail.* 配置 */
     private final JavaMailSender mailSender;

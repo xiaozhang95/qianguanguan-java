@@ -40,11 +40,8 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * 参考文档：<a href="https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/">微信小程序服务端 API</a>
  */
-// Lombok：自动生成 log 日志对象
 @Slf4j
-// 标记为 Spring Bean
 @Service
-// 自动生成构造器注入
 @RequiredArgsConstructor
 public class WxService {
 
@@ -55,8 +52,6 @@ public class WxService {
      * 微信实际有效期 7200 秒，留 200 秒缓冲，防止在使用过程中刚好过期
      */
     private static final long ACCESS_TOKEN_EXPIRE = 7000;
-
-    // --- 依赖注入 ---
 
     /** 安全配置：读取 yaml 中的 wx.appId、wx.appSecret */
     private final SecurityProperties securityProperties;

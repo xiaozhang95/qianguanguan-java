@@ -247,22 +247,7 @@ public class WxService {
         // --- 第4步：创建自定义 RestTemplate（忽略 HTTP 错误状态码） ---
         // 微信接口在失败时返回 HTTP 200 + JSON 错误信息，但某些情况下也可能返回非 200
         // 自定义 RestTemplate 的 errorHandler 不抛出异常，由我们手动判断
-        RestTemplate noErrorRestTemplate = new RestTemplate();
-        // setErrorHandler：设置自定义错误处理器
-        noErrorRestTemplate.setErrorHandler(new ResponseErrorHandler() {
-            @Override
-            public boolean hasError(@NonNull ClientHttpResponse response) {
-                // 永远返回 false：告诉 RestTemplate "没有错误"
-                // 这样即使 HTTP 状态码不是 2xx 也不会抛异常
-                return false;
-            }
-
-            @Override
-            public void handleError(@NonNull URI url, @NonNull HttpMethod method, @NonNull ClientHttpResponse response) {
-                // 空实现：不处理（因为 hasError 返回 false，此方法不会被调用）
-                // 但接口要求实现，所以留空
-            }
-        });
+        RestTemplate noErrorRestTemplate = getRestTemplate();
 
         try {
             // --- 第5步：序列化请求体为 JSON 字符串 ---
@@ -335,5 +320,25 @@ public class WxService {
             log.error("获取小程序码异常", e);
             throw new RuntimeException("获取小程序码失败");
         }
+    }
+
+    private static @NonNull RestTemplate getRestTemplate() {
+        RestTemplate noErrorRestTemplate = new RestTemplate();
+        // setErrorHandler：设置自定义错误处理器
+        noErrorRestTemplate.setErrorHandler(new ResponseErrorHandler() {
+            @Override
+            public boolean hasError(@NonNull ClientHttpResponse response) {
+                // 永远返回 false：告诉 RestTemplate "没有错误"
+                // 这样即使 HTTP 状态码不是 2xx 也不会抛异常
+                return false;
+            }
+
+            @Override
+            public void handleError(@NonNull URI url, @NonNull HttpMethod method, @NonNull ClientHttpResponse response) {
+                // 空实现：不处理（因为 hasError 返回 false，此方法不会被调用）
+                // 但接口要求实现，所以留空
+            }
+        });
+        return noErrorRestTemplate;
     }
 }

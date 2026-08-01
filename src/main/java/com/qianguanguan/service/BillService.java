@@ -253,14 +253,15 @@ public class BillService {
                              String day, String type, Long categoryId) {
         // --- 1. 构建日期前缀（用于 SQL LIKE 查询） ---
         String prefix; // 如 "2026-07" 或 "2026-07-31"
+        String s = month.length() == 1 ? "0" + month : month;
         if (day != null && !day.isEmpty()) {
             // 按日统计：补零确保两位数，如 "7" → "07"
             prefix = year + "-"
-                    + (month.length() == 1 ? "0" + month : month) + "-"
+                    + s + "-"
                     + (day.length() == 1 ? "0" + day : day);
         } else {
             // 按月统计
-            prefix = year + "-" + (month.length() == 1 ? "0" + month : month);
+            prefix = year + "-" + s;
         }
 
         // --- 2. 构建查询条件 ---

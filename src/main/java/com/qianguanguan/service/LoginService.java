@@ -45,7 +45,6 @@ public class LoginService {
 
     // --- 依赖注入 ---
     private final UserMapper userMapper;               // 用户表操作
-    private final UserService userService;              // 用户服务（获取用户信息）
     private final PasswordEncoder passwordEncoder;      // BCrypt 密码编码器
     private final CaptchaService captchaService;        // 图形验证码服务
     private final EmailService emailService;            // 邮箱验证码服务
@@ -110,13 +109,6 @@ public class LoginService {
                         .createtime(user.getCreatetime())
                         .build())
                 .build();
-    }
-
-    /**
-     * 获取当前用户信息（委托给 UserService）
-     */
-    public LoginResponse.UserInfo getUserInfo(Long userId) {
-        return userService.getUserInfo(userId);
     }
 
     /**

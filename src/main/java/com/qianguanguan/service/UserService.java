@@ -76,8 +76,7 @@ public class UserService {
      * @param pageSize 每页条数
      * @return 分页用户列表
      */
-    public IPage<User> list(String username, String role, Integer status,
-                            Integer pageNum, Integer pageSize) {
+    public IPage<User> list(String username, String role, Integer status, Integer pageNum, Integer pageSize) {
         // 构建动态查询条件
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         // 传入用户名则模糊搜索
@@ -180,8 +179,7 @@ public class UserService {
      * @param avatar    新头像路径
      * @return 更新后的 UserInfo
      */
-    public LoginResponse.UserInfo updateProfile(Long userId, String name, String phone,
-                                                 String email, String emailCode, String avatar) {
+    public LoginResponse.UserInfo updateProfile(Long userId, String name, String phone, String email, String emailCode, String avatar) {
         // --- 1. 查询当前用户 ---
         User user = userMapper.selectById(userId);
         if (user == null) {

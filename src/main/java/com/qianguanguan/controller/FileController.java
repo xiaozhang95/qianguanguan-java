@@ -36,9 +36,7 @@ public class FileController {
 
     @Operation(summary = "上传文件", description = "上传文件并返回访问路径")
     @PostMapping("/upload")
-    public Map<String, String> upload(
-            @RequestParam("file") MultipartFile file
-    ) throws IOException {
+    public Map<String, String> upload(@RequestParam("file") MultipartFile file) throws IOException {
         // --- 1. 确保上传目录存在 ---
         // 将配置的上传路径字符串转为 Path 对象
         Path dir = Paths.get(uploadDir);

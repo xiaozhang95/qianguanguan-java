@@ -48,9 +48,7 @@ public class BillService {
      * @param pageSize   每页条数（默认10）
      * @return 分页结果，包含 BillVO 列表
      */
-    public IPage<BillVO> list(Long userId, String type, Long categoryId,
-                              String startDate, String endDate,
-                              Integer pageNum, Integer pageSize) {
+    public IPage<BillVO> list(Long userId, String type, Long categoryId, String startDate, String endDate, Integer pageNum, Integer pageSize) {
         // --- 1. 构建查询条件 ---
         // 类型安全的查询构造器：lambda 引用字段名
         LambdaQueryWrapper<Bill> wrapper = new LambdaQueryWrapper<Bill>()
@@ -328,8 +326,7 @@ public class BillService {
      * @param categoryId 分类筛选（可选）
      * @return 统计结果 VO（总收入、总支出、结余）
      */
-    public BillStatsVO stats(Long userId, String year, String month,
-                             String day, String type, Long categoryId) {
+    public BillStatsVO stats(Long userId, String year, String month, String day, String type, Long categoryId) {
         // --- 1. 构建日期前缀（用于 SQL LIKE 查询） ---
         // 统计区间的日期前缀，如 "2026-07" 或 "2026-07-31"
         String prefix = getString(year, month, day);

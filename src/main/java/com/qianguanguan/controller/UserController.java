@@ -65,10 +65,7 @@ public class UserController {
 
     @Operation(summary = "切换用户状态", description = "仅超级管理员可启用/禁用用户")
     @PutMapping("/user/toggle/{id}")
-    public void userToggle(
-            HttpServletRequest request,
-            @PathVariable Long id
-    ) {
+    public void userToggle(HttpServletRequest request, @PathVariable Long id) {
         // 取出JWT属性中的当前操作者角色，用于权限校验
         String role = (String) request.getAttribute(JwtClaims.ROLE);
         // 委托Service切换状态（内部校验仅SUPER_ADMIN可操作）
@@ -77,11 +74,7 @@ public class UserController {
 
     @Operation(summary = "修改用户角色", description = "仅超级管理员可修改用户角色类型")
     @PutMapping("/user/role/update/{id}")
-    public void userUpdateRole(
-            HttpServletRequest request,
-            @PathVariable Long id,
-            @RequestParam String role
-    ) {
+    public void userUpdateRole(HttpServletRequest request, @PathVariable Long id, @RequestParam String role) {
         // 取出JWT属性中的操作者角色
         String requesterRole = (String) request.getAttribute(JwtClaims.ROLE);
         // 委托Service校验权限后修改目标用户角色
@@ -90,10 +83,7 @@ public class UserController {
 
     @Operation(summary = "修改个人信息", description = "当前用户修改自己的姓名、手机号、邮箱")
     @PutMapping("/user/profile")
-    public LoginResponse.UserInfo updateProfile(
-            HttpServletRequest request,
-            @RequestBody ProfileUpdateRequest body
-    ) {
+    public LoginResponse.UserInfo updateProfile(HttpServletRequest request, @RequestBody ProfileUpdateRequest body) {
         // 从JWT过滤器写入的Request属性中取出用户ID
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
         // 委托Service更新个人资料（修改邮箱需验证码）
@@ -115,10 +105,7 @@ public class UserController {
 
     @Operation(summary = "修改密码", description = "当前用户修改自己的登录密码")
     @PutMapping("/user/password")
-    public void changePassword(
-            HttpServletRequest request,
-            @RequestBody ChangePasswordRequest body
-    ) {
+    public void changePassword(HttpServletRequest request, @RequestBody ChangePasswordRequest body) {
         // 从JWT过滤器写入的Request属性中取出用户ID
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
         // 校验原密码正确后修改为新密码

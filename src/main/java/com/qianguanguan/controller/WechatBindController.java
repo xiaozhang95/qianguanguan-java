@@ -26,9 +26,7 @@ public class WechatBindController {
 
     @Operation(summary = "生成绑定场景码", description = "生成扫码绑定的场景ID和二维码")
     @GetMapping("/wechat-bind/scene")
-    public Map<String, String> generateScene(
-            HttpServletRequest request
-    ) {
+    public Map<String, String> generateScene(HttpServletRequest request) {
         // 从JWT过滤器写入的Request属性中取出用户ID
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
         // 委托Service生成绑定场景码，返回 {sceneId, qrImage}
@@ -37,18 +35,14 @@ public class WechatBindController {
 
     @Operation(summary = "查询绑定场景码状态", description = "轮询场景码是否被确认")
     @GetMapping("/wechat-bind/status")
-    public Map<String, Object> checkStatus(
-            @RequestParam String sceneId
-    ) {
+    public Map<String, Object> checkStatus(@RequestParam String sceneId) {
         // 委托Service查询绑定状态，供Web端轮询
         return wechatBindService.checkStatus(sceneId);
     }
 
     @Operation(summary = "确认绑定", description = "小程序确认绑定微信")
     @PostMapping("/wechat-bind/confirm")
-    public Map<String, Object> confirmBind(
-            @RequestBody Map<String, String> body
-    ) {
+    public Map<String, Object> confirmBind(@RequestBody Map<String, String> body) {
         // 从请求体中取出场景码 ID
         String sceneId = body.get("sceneId");
         // 从请求体中取出微信临时登录凭证 code

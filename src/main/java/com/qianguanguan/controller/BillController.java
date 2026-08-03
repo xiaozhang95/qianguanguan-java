@@ -1,17 +1,11 @@
 package com.qianguanguan.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.qianguanguan.constant.JwtClaims;
 import com.qianguanguan.entity.Category;
-import com.qianguanguan.model.BillVO;
-import com.qianguanguan.model.CategorySaveRequest;
-import com.qianguanguan.model.CategoryListRequest;
-import com.qianguanguan.model.BillSaveRequest;
-import com.qianguanguan.model.BillListRequest;
-import com.qianguanguan.model.BillStatsRequest;
-import com.qianguanguan.model.BillStatsVO;
+import com.qianguanguan.model.*;
 import com.qianguanguan.service.BillService;
 import com.qianguanguan.service.CategoryService;
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,10 +32,7 @@ public class BillController {
 
     @Operation(summary = "获取分类列表")
     @PostMapping("/category/list")
-    public List<Category> categoryList(
-            HttpServletRequest request,
-            @RequestBody(required = false) CategoryListRequest body
-    ) {
+    public List<Category> categoryList(HttpServletRequest request, @RequestBody(required = false) CategoryListRequest body) {
         // 从JWT过滤器写入的Request属性中取出用户ID
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
         // 请求体可为空，为空时按查询全部类型处理
@@ -52,10 +43,7 @@ public class BillController {
 
     @Operation(summary = "新增分类")
     @PostMapping("/category/save")
-    public Category categorySave(
-            HttpServletRequest request,
-            @RequestBody CategorySaveRequest body
-    ) {
+    public Category categorySave(HttpServletRequest request, @RequestBody CategorySaveRequest body) {
         // 从JWT过滤器写入的Request属性中取出用户ID
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
         // 委托Service新增分类并返回保存结果
@@ -64,11 +52,7 @@ public class BillController {
 
     @Operation(summary = "更新分类")
     @PutMapping("/category/update/{id}")
-    public Category categoryUpdate(
-            HttpServletRequest request,
-            @PathVariable Long id,
-            @RequestBody CategorySaveRequest body
-    ) {
+    public Category categoryUpdate(HttpServletRequest request, @PathVariable Long id, @RequestBody CategorySaveRequest body) {
         // 从JWT过滤器写入的Request属性中取出用户ID
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
         // 委托Service按ID更新分类并返回最新数据
@@ -77,10 +61,7 @@ public class BillController {
 
     @Operation(summary = "删除分类")
     @DeleteMapping("/category/delete/{id}")
-    public void categoryDelete(
-            HttpServletRequest request,
-            @PathVariable Long id
-    ) {
+    public void categoryDelete(HttpServletRequest request, @PathVariable Long id) {
         // 从JWT过滤器写入的Request属性中取出用户ID
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
         // 委托Service删除当前用户的指定分类
@@ -89,10 +70,7 @@ public class BillController {
 
     @Operation(summary = "账单列表")
     @PostMapping("/bill/list")
-    public IPage<BillVO> billList(
-            HttpServletRequest request,
-            @RequestBody BillListRequest body
-    ) {
+    public IPage<BillVO> billList(HttpServletRequest request, @RequestBody BillListRequest body) {
         // 从JWT过滤器写入的Request属性中取出用户ID
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
         // 委托Service按筛选条件分页查询账单
@@ -116,10 +94,7 @@ public class BillController {
 
     @Operation(summary = "新增账单")
     @PostMapping("/bill/save")
-    public BillVO billSave(
-            HttpServletRequest request,
-            @RequestBody BillSaveRequest billRequest
-    ) {
+    public BillVO billSave(HttpServletRequest request, @RequestBody BillSaveRequest billRequest) {
         // 从JWT过滤器写入的Request属性中取出用户ID
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
         // 委托Service新增账单并返回保存结果
@@ -128,11 +103,7 @@ public class BillController {
 
     @Operation(summary = "更新账单")
     @PutMapping("/bill/update/{id}")
-    public BillVO billUpdate(
-            HttpServletRequest request,
-            @PathVariable Long id,
-            @RequestBody BillSaveRequest billRequest
-    ) {
+    public BillVO billUpdate(HttpServletRequest request, @PathVariable Long id, @RequestBody BillSaveRequest billRequest) {
         // 从JWT过滤器写入的Request属性中取出用户ID
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
         // 委托Service按ID更新账单并返回最新数据
@@ -141,10 +112,7 @@ public class BillController {
 
     @Operation(summary = "删除账单")
     @DeleteMapping("/bill/delete/{id}")
-    public void billDelete(
-            HttpServletRequest request,
-            @PathVariable Long id
-    ) {
+    public void billDelete(HttpServletRequest request, @PathVariable Long id) {
         // 从JWT过滤器写入的Request属性中取出用户ID
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
         // 委托Service删除当前用户的指定账单
@@ -153,10 +121,7 @@ public class BillController {
 
     @Operation(summary = "月度统计")
     @PostMapping("/bill/stats")
-    public BillStatsVO billStats(
-            HttpServletRequest request,
-            @RequestBody BillStatsRequest body
-    ) {
+    public BillStatsVO billStats(HttpServletRequest request, @RequestBody BillStatsRequest body) {
         // 从JWT过滤器写入的Request属性中取出用户ID
         Long userId = (Long) request.getAttribute(JwtClaims.ID);
         // 委托Service统计该用户各类型的收支数据

@@ -49,9 +49,7 @@ public class QrLoginController {
      */
     @Operation(summary = "查询场景码状态", description = "轮询场景码是否被确认")
     @GetMapping("/qr-login/status")
-    public Map<String, Object> checkStatus(
-            @RequestParam String sceneId
-    ) {
+    public Map<String, Object> checkStatus(@RequestParam String sceneId) {
         // 委托Service查询场景状态，供Web端轮询
         return qrLoginService.checkStatus(sceneId);
     }
@@ -65,9 +63,7 @@ public class QrLoginController {
      */
     @Operation(summary = "确认登录", description = "小程序确认登录")
     @PostMapping("/qr-login/confirm")
-    public LoginResponse confirmLogin(
-            @RequestBody Map<String, String> body
-    ) {
+    public LoginResponse confirmLogin(@RequestBody Map<String, String> body) {
         // 从请求体中取出场景码 ID
         String sceneId = body.get("sceneId");
         // 从请求体中取出微信临时登录凭证 code

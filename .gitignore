@@ -29,9 +29,10 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-.vscode/
-.reasonix/
+.vscode
+.reasonix
+.workbuddy
 reasonix.toml
-logs/
-upload/
+logs
+upload
 qianguanguan.tar

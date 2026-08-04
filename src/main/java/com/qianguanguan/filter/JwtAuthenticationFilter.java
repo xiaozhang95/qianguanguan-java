@@ -2,9 +2,8 @@ package com.qianguanguan.filter;
 
 import com.qianguanguan.configuration.SecurityProperties;
 import com.qianguanguan.constant.JwtClaims;
-import com.qianguanguan.response.Response;
+import com.qianguanguan.response.ResponseWriter;
 import com.qianguanguan.util.Jwt;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.FilterChain;
@@ -44,10 +43,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final StringRedisTemplate stringRedisTemplate;
     private final SecurityProperties securityProperties;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
+    private final ResponseWriter responseWriter;
 
-    public JwtAuthenticationFilter(StringRedisTemplate stringRedisTemplate, SecurityProperties securityProperties) {
+    public JwtAuthenticationFilter(StringRedisTemplate stringRedisTemplate,
+                                   SecurityProperties securityProperties,
+                                   ResponseWriter responseWriter) {
         this.stringRedisTemplate = stringRedisTemplate;
         this.securityProperties = securityProperties;
+        this.responseWriter = responseWriter;
     }
 
     /**
@@ -97,7 +100,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     request.setAttribute(JwtClaims.ROLE, role);
                     request.setAttribute(JwtClaims.ID, id);
                 } else {
-                    writeJsonResponse(response);
+                    responseWriter.writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "token过期");
                     return;
                 }
             } catch (Exception e) {
@@ -106,16 +109,5 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         chain.doFilter(request, response);
-    }
-
-    /**
-     * 返回 Token 过期的 JSON 错误响应
-     */
-    private void writeJsonResponse(HttpServletResponse response) throws IOException {
-        response.setContentType("application/json;charset=UTF-8");
-        response.setStatus(HttpServletResponse.SC_OK);
-        Response<Object> rsp = Response.error("token过期", HttpServletResponse.SC_UNAUTHORIZED);
-        ObjectMapper objectMapper = new ObjectMapper();
-        response.getWriter().write(objectMapper.writeValueAsString(rsp));
     }
 }

@@ -30,9 +30,11 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 public class GlobalResponseHandler implements ResponseBodyAdvice<Object> {
 
     private final SecurityProperties securityProperties;
+    private final ObjectMapper objectMapper;
 
-    public GlobalResponseHandler(SecurityProperties securityProperties) {
+    public GlobalResponseHandler(SecurityProperties securityProperties, ObjectMapper objectMapper) {
         this.securityProperties = securityProperties;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -86,7 +88,7 @@ public class GlobalResponseHandler implements ResponseBodyAdvice<Object> {
 
         if (body instanceof String) {
             try {
-                return new ObjectMapper().writeValueAsString(Response.success(body));
+                return objectMapper.writeValueAsString(Response.success(body));
             } catch (JsonProcessingException e) {
                 return Response.error(e.getMessage());
             }

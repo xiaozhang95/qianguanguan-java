@@ -1,9 +1,8 @@
 package com.qianguanguan.configuration;
 
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qianguanguan.filter.JwtAuthenticationFilter;
-import com.qianguanguan.response.Response;
+import com.qianguanguan.response.ResponseWriter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,7 +17,6 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import java.io.IOException;
 
 /**
  * Spring Security 安全配置
@@ -32,10 +30,14 @@ public class SecurityConfig {
 
     private final SecurityProperties securityProperties;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ResponseWriter responseWriter;
 
-    public SecurityConfig(SecurityProperties securityProperties, JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(SecurityProperties securityProperties,
+                          JwtAuthenticationFilter jwtAuthenticationFilter,
+                          ResponseWriter responseWriter) {
         this.securityProperties = securityProperties;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.responseWriter = responseWriter;
     }
 
     /**
@@ -63,11 +65,11 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
                             // 处理未认证的请求（401）
-                            writeJsonResponse(response, HttpServletResponse.SC_UNAUTHORIZED, authException.getMessage());
+                            responseWriter.writeError(response, HttpServletResponse.SC_UNAUTHORIZED, authException.getMessage());
                         })
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
                             // 处理无权限的请求（403）
-                            writeJsonResponse(response, HttpServletResponse.SC_FORBIDDEN, accessDeniedException.getMessage());
+                            responseWriter.writeError(response, HttpServletResponse.SC_FORBIDDEN, accessDeniedException.getMessage());
                         })
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -92,14 +94,4 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    /**
-     * 向客户端写入 JSON 格式的错误响应
-     */
-    private void writeJsonResponse(HttpServletResponse response, int code, String msg) throws IOException {
-        response.setContentType("application/json;charset=UTF-8");
-        response.setStatus(HttpServletResponse.SC_OK);
-        Response<Object> rsp = Response.error(msg, code);
-        ObjectMapper objectMapper = new ObjectMapper();
-        response.getWriter().write(objectMapper.writeValueAsString(rsp));
-    }
 }

@@ -190,33 +190,9 @@ public class BillService {
         // MyBatis-Plus 插入数据库
         billMapper.insert(bill);
 
-        // --- 2. 查询分类信息用于返回 ---
-        // 按分类ID 查分类实体
-        Category category = categoryMapper.selectById(bill.getCategoryId());
-        // --- 3. 构建 VO 返回 ---
-        // 构建返回 VO
-        return BillVO.builder()
-                // 账单ID
-                .id(bill.getId())
-                // 所属用户ID
-                .userId(bill.getUserId())
-                // 分类ID
-                .categoryId(bill.getCategoryId())
-                // 分类名，缺失时兜底"未知"
-                .categoryName(category != null ? category.getName() : "未知")
-                // 分类图标，缺失时用 ❓ 占位
-                .categoryIcon(category != null ? category.getIcon() : "❓")
-                // 账单类型
-                .type(bill.getType())
-                // 金额
-                .amount(bill.getAmount())
-                // 账单日期
-                .billDate(bill.getBillDate())
-                // 备注
-                .remark(bill.getRemark())
-                // 创建时间
-                .createtime(bill.getCreatetime())
-                .build();
+        // --- 2. 构建 VO 返回 ---
+        // 复用公共转换方法，附带分类名称和图标
+        return toVO(bill);
     }
 
     /**
@@ -259,32 +235,9 @@ public class BillService {
         // 按主键更新整行
         billMapper.updateById(bill);
 
-        // --- 4. 查询分类并返回 VO ---
-        // 查分类用于组装 VO
-        Category category = categoryMapper.selectById(bill.getCategoryId());
-        // 构建返回 VO
-        return BillVO.builder()
-                // 账单ID
-                .id(bill.getId())
-                // 所属用户ID
-                .userId(bill.getUserId())
-                // 分类ID
-                .categoryId(bill.getCategoryId())
-                // 分类名，缺失时兜底"未知"
-                .categoryName(category != null ? category.getName() : "未知")
-                // 分类图标，缺失时用 ❓ 占位
-                .categoryIcon(category != null ? category.getIcon() : "❓")
-                // 账单类型
-                .type(bill.getType())
-                // 金额
-                .amount(bill.getAmount())
-                // 账单日期
-                .billDate(bill.getBillDate())
-                // 备注
-                .remark(bill.getRemark())
-                // 创建时间
-                .createtime(bill.getCreatetime())
-                .build();
+        // --- 4. 构建 VO 返回 ---
+        // 复用公共转换方法，附带分类名称和图标
+        return toVO(bill);
     }
 
     /**
@@ -310,6 +263,70 @@ public class BillService {
         // --- 3. 物理删除 ---
         // 从数据库删除该账单记录
         billMapper.deleteById(id);
+    }
+
+    /**
+     * 查询账单详情（仅限本人账单）
+     * <p>
+     * 按主键查询账单并校验归属权，供编辑页回显使用，避免前端全量拉取列表再内存过滤。
+     *
+     * @param userId 当前用户ID
+     * @param id     账单ID
+     * @return 账单 VO
+     * @throws RuntimeException 账单不存在或无权操作
+     */
+    public BillVO detail(Long userId, Long id) {
+        // --- 1. 查询原账单 ---
+        // 按主键查原账单
+        Bill bill = billMapper.selectById(id);
+        // 账单不存在时直接报错
+        if (bill == null) {
+            // 账单ID无效
+            throw new RuntimeException("账单不存在");
+        }
+        // --- 2. 校验归属权 ---
+        // 非本人账单，拒绝操作
+        if (!bill.getUserId().equals(userId)) {
+            // 不是当前用户的账单
+            throw new RuntimeException("无权操作此账单");
+        }
+        // --- 3. 构建 VO 返回 ---
+        // 复用公共转换方法，附带分类名称和图标
+        return toVO(bill);
+    }
+
+    /**
+     * 账单实体转 VO（附带分类名称/图标）
+     *
+     * @param bill 账单实体
+     * @return 账单 VO
+     */
+    private BillVO toVO(Bill bill) {
+        // 按分类ID 查分类实体
+        Category category = categoryMapper.selectById(bill.getCategoryId());
+        // 构建返回 VO
+        return BillVO.builder()
+                // 账单ID
+                .id(bill.getId())
+                // 所属用户ID
+                .userId(bill.getUserId())
+                // 分类ID
+                .categoryId(bill.getCategoryId())
+                // 分类名，缺失时兜底"未知"
+                .categoryName(category != null ? category.getName() : "未知")
+                // 分类图标，缺失时用 ❓ 占位
+                .categoryIcon(category != null ? category.getIcon() : "❓")
+                // 账单类型
+                .type(bill.getType())
+                // 金额
+                .amount(bill.getAmount())
+                // 账单日期
+                .billDate(bill.getBillDate())
+                // 备注
+                .remark(bill.getRemark())
+                // 创建时间
+                .createtime(bill.getCreatetime())
+                .build();
     }
 
     /**

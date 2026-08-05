@@ -92,6 +92,15 @@ public class BillController {
         );
     }
 
+    @Operation(summary = "账单详情")
+    @GetMapping("/bill/detail/{id}")
+    public BillVO billDetail(HttpServletRequest request, @PathVariable Long id) {
+        // 从JWT过滤器写入的Request属性中取出用户ID
+        Long userId = (Long) request.getAttribute(JwtClaims.ID);
+        // 委托Service按ID查询账单详情（含归属校验）
+        return billService.detail(userId, id);
+    }
+
     @Operation(summary = "新增账单")
     @PostMapping("/bill/save")
     public BillVO billSave(HttpServletRequest request, @RequestBody BillSaveRequest billRequest) {
